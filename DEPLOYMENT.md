@@ -5,6 +5,39 @@ is explicitly unsafe for production (`FLASK_DEBUG=1` and the Werkzeug dev
 server both leak internals / aren't hardened for concurrent real traffic).
 This is the checklist to go from "works on my machine" to a real deployment.
 
+## 0. If deploying to a university-managed server
+
+Ask IT for, before writing any deploy scripts:
+- SSH (or equivalent) access to a Linux server/VM you can run a persistent
+  process on — some universities instead offer cPanel, a Docker/container
+  platform, or a shared app runner; the gunicorn/systemd approach in §2
+  assumes plain SSH access and may need adapting to whatever they actually
+  offer.
+- A subdomain pointed at that server (e.g. `jtead.usa.edu.ph`).
+- Either a TLS certificate they issue, or permission to run `certbot`
+  (Let's Encrypt) yourself.
+- Confirmation that ports 80/443 are free for a reverse proxy — gunicorn
+  itself should only ever listen on localhost (§2–3).
+
+## 0b. Real email via Gmail / Google Workspace (e.g. a usa.edu.ph address)
+
+1. Enable 2-Step Verification on the sending account, if it isn't already.
+2. Go to `myaccount.google.com/apppasswords`, generate an app password for
+   "Mail".
+3. Set in `.env`:
+   ```
+   SMTP_HOST=smtp.gmail.com
+   SMTP_PORT=587
+   SMTP_USERNAME=<the address>
+   SMTP_PASSWORD=<the 16-character app password>
+   MAIL_FROM=<the address>
+   ```
+   Leave `SMTP_USE_TLS` at its default (on).
+
+If the account is managed under a Workspace org and app passwords are
+disabled organization-wide, IT needs to enable them for this account
+specifically — there's no app-side workaround for that.
+
 ## 1. Environment
 
 Set these in the production `.env` (or your host's secrets manager — don't
