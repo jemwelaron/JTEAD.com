@@ -12,6 +12,11 @@
   .dashboard-filters input[type="text"] { flex: 1 1 260px; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; }
   .dashboard-filters select { padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; }
   .result-count { font-size: 13px; color: #667085; }
+  .history-row td { background: #f8f9fa; padding: 12px 16px; }
+  .history-row .history-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+  .history-row .history-list li { padding: 4px 0; }
+  .history-row .history-date { color: #667085; margin-left: 8px; }
+  .history-row .history-by { color: #667085; margin-left: 8px; font-style: italic; }
   .editor-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
   .editor-table th, .editor-table td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; vertical-align: top; }
   .editor-table th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
@@ -84,7 +89,7 @@
       <div class="title-underline"></div>
     </div>
   </div>
-  <p class="page-intro" id="pageIntro">Signed in as <strong id="accountName">&hellip;</strong> (<a href="account-settings.html">Account Settings</a>). Review submissions and update their status below.</p>
+  <p class="page-intro" id="pageIntro">Signed in as <strong id="accountName">&hellip;</strong> (<a href="account-settings.html">Account Settings</a> &middot; <a href="editor-users.html">Manage Editors</a>). Review submissions and update their status below.</p>
 
   <div id="deniedNotice" class="denied-notice hidden">
     You're signed in, but this account doesn't have editor access.
@@ -107,6 +112,7 @@
           <th>Files</th>
           <th>Submitted</th>
           <th>Status</th>
+          <th>History</th>
         </tr>
       </thead>
       <tbody id="submissionsBody"></tbody>
@@ -198,6 +204,39 @@
     }
   }
 
+  async function handleHistoryToggle(event) {
+    event.preventDefault();
+    const link = event.target;
+    const submissionId = link.dataset.submissionId;
+    const row = document.querySelector(`tr[data-history-row="${submissionId}"]`);
+    const isHidden = row.classList.contains('hidden');
+
+    if (!isHidden) {
+      row.classList.add('hidden');
+      link.textContent = 'Show';
+      return;
+    }
+
+    const list = row.querySelector('.history-list');
+    if (!list.dataset.loaded) {
+      list.innerHTML = '<li>Loading…</li>';
+      const res = await fetch(`/api/editor/submissions/${submissionId}/history`);
+      const entries = res.ok ? await res.json() : [];
+      list.innerHTML = entries
+        .map((h) => {
+          const date = new Date(h.changed_at).toLocaleString(undefined, {
+            year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+          });
+          const by = h.changed_by ? `<span class="history-by">by ${escapeHtml(h.changed_by)}</span>` : '';
+          return `<li>${escapeHtml(STATUS_LABELS[h.new_status] || h.new_status)}<span class="history-date">${date}</span>${by}</li>`;
+        })
+        .join('');
+      list.dataset.loaded = '1';
+    }
+    row.classList.remove('hidden');
+    link.textContent = 'Hide';
+  }
+
   let allSubmissions = [];
 
   function matchesFilters(s, query, status) {
@@ -219,7 +258,7 @@
       `${filtered.length} of ${allSubmissions.length} submission${allSubmissions.length === 1 ? '' : 's'}`;
 
     if (!filtered.length) {
-      body.innerHTML = `<tr><td colspan="6">${allSubmissions.length ? 'No submissions match this filter.' : 'No submissions yet.'}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="7">${allSubmissions.length ? 'No submissions match this filter.' : 'No submissions yet.'}</td></tr>`;
       return;
     }
 
@@ -258,12 +297,19 @@
             <td>${fileLinks}</td>
             <td>${date}</td>
             <td>${statusCell}</td>
+            <td><a href="#" class="history-toggle" data-submission-id="${s.id}">Show</a></td>
+          </tr>
+          <tr class="history-row hidden" data-history-row="${s.id}">
+            <td colspan="7"><ul class="history-list"></ul></td>
           </tr>`;
       })
       .join('');
 
     body.querySelectorAll('select[data-submission-id]').forEach((select) => {
       select.addEventListener('change', handleStatusChange);
+    });
+    body.querySelectorAll('.history-toggle').forEach((link) => {
+      link.addEventListener('click', handleHistoryToggle);
     });
   }
 

@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Manage Editors — JTEAD</title>
+<link rel="icon" type="image/png" href="COT LOGO.png" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  .users-search { margin-top: 24px; max-width: 420px; }
+  .users-search input { width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; box-sizing: border-box; }
+  .editor-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .editor-table th, .editor-table td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+  .editor-table th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
+  .role-badge { font-size: 12px; padding: 2px 10px; border-radius: 999px; background: #eef2ff; color: #3730a3; }
+  .role-btn { padding: 6px 14px; border-radius: 4px; border: 1px solid #e2e8f0; background: #fff; cursor: pointer; font-size: 13px; }
+  .role-btn:hover { background: #f1f5f9; }
+  .role-btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+  .action-status { font-size: 12px; margin-left: 8px; color: #1e6b34; }
+  .action-status.error { color: #b3261e; }
+  .denied-notice { background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 14px 16px; margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="container">
+      <a href="https://usa.edu.ph" target="_blank" rel="noopener">University of San Agustin</a>
+      <a href="#" id="accountLink">My Account</a>
+      <a href="#footerContact">Contact Us</a>
+    </div>
+  </div>
+
+  <div class="site-header">
+    <div class="container">
+      <div class="brand">
+        <img src="COT LOGO.png" class="logo" alt="JTEAD Logo">
+        <div class="brand-text">
+          <h1>JOURNAL OF TECHNOLOGY, ENGINEERING,<br />ARCHITECTURE AND DESIGN</h1>
+          <p>A peer reviewed journal of the<br />College of Technology, University of San Agustin</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn-submit" href="Submit%20portal.html">Submit Manuscript
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+        </a>
+        <div class="search-wrap">
+          <label class="search-box">
+            <input type="text" id="siteSearchInput" placeholder="Search Article..." aria-label="Search Article" autocomplete="off" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          </label>
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="main-nav">
+    <div class="container">
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <ul class="nav-list">
+        <li><a href="index.html">HOME</a></li>
+        <li><a href="aims-and-scope.html">AIMS AND SCOPE</a></li>
+        <li><a href="author-guidelines.html">FOR AUTHORS</a></li>
+        <li><a href="current.html">CURRENT</a></li>
+        <li><a href="archives.html">ARCHIVES</a></li>
+        <li><a href="editorial-board.html">EDITORIAL BOARD</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main class="container copyright-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="index.html">Home</a>
+    <span class="sep">&rsaquo;</span>
+    <a href="editor-dashboard.html">Editor Dashboard</a>
+    <span class="sep">&rsaquo;</span>
+    <span class="current current-gold">Manage Editors</span>
+  </nav>
+
+  <div class="announce-header" style="align-items:flex-start; margin-bottom: 10px;">
+    <div>
+      <h2 class="page-title">Manage Editors</h2>
+      <div class="title-underline"></div>
+    </div>
+  </div>
+  <p class="page-intro">Any existing editor can grant or remove editor access on another account.</p>
+
+  <div id="deniedNotice" class="denied-notice hidden">
+    You're signed in, but this account doesn't have editor access.
+  </div>
+
+  <div id="content" class="hidden">
+    <div class="users-search">
+      <input type="text" id="userSearch" placeholder="Search by name or email…" aria-label="Search users">
+    </div>
+    <table class="editor-table">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Email</th>
+          <th>Role</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody id="usersBody"></tbody>
+    </table>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <h5>About JTEAD</h5>
+      <p>The official research journal of the College of Technology, University of San Agustin, dedicated to advancing knowledge in technology, engineering, architecture, and design</p>
+    </div>
+    <div>
+      <h5>Quick Links</h5>
+      <ul>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="current.html">Current issue</a></li>
+        <li><a href="archives.html">Archives</a></li>
+        <li><a href="Submit%20portal.html">Submit manuscript</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>For Authors</h5>
+      <ul>
+        <li><a href="author-guidelines.html">Author Guidelines</a></li>
+        <li><a href="author-guidelines.html#submission-process">Submission Process</a></li>
+        <li><a href="review-process.html">Review Process</a></li>
+        <li><a href="copyright-policy.html">Copyright Policy</a></li>
+      </ul>
+    </div>
+    <div id="footerContact">
+      <h5>Contact</h5>
+      <p>College of Technology<br />University of San Agustin<br />Iloilo City, Philippines<br />cea@usa.edu.ph</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; 2025 Journal of Technology, Engineering, Architecture and Design, All rights reserved</p>
+    <div class="legal-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-use.html">Terms of use</a>
+    </div>
+  </div>
+</footer>
+
+<script src="issues-data.js"></script>
+<script src="script.js"></script>
+<script>
+  let currentUserId = null;
+
+  function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+  }
+
+  async function getCsrfToken() {
+    const res = await fetch('/api/csrf-token');
+    const data = await res.json();
+    return data.csrf_token;
+  }
+
+  async function loadUsers(search) {
+    const params = search ? `?search=${encodeURIComponent(search)}` : '';
+    const res = await fetch(`/api/editor/users${params}`);
+    if (!res.ok) return;
+    const users = await res.json();
+    renderUsers(users);
+  }
+
+  function renderUsers(users) {
+    const body = document.getElementById('usersBody');
+    if (!users.length) {
+      body.innerHTML = '<tr><td colspan="4">No matching accounts.</td></tr>';
+      return;
+    }
+    body.innerHTML = users
+      .map((u) => {
+        const isSelf = u.id === currentUserId;
+        const roleBadge = u.is_editor
+          ? '<span class="role-badge">Editor</span>'
+          : '<span style="color:#667085;">Author</span>';
+        const action = u.is_editor
+          ? `<button class="role-btn" data-action="demote" data-user-id="${u.id}"${isSelf ? ' disabled title="You can\'t remove your own editor access."' : ''}>Remove editor access</button>`
+          : `<button class="role-btn" data-action="promote" data-user-id="${u.id}">Make editor</button>`;
+        return `
+          <tr>
+            <td>${escapeHtml(u.full_name)}</td>
+            <td>${escapeHtml(u.email)}</td>
+            <td>${roleBadge}</td>
+            <td>${action}<span class="action-status" id="status-${u.id}"></span></td>
+          </tr>`;
+      })
+      .join('');
+
+    body.querySelectorAll('button[data-action]').forEach((btn) => {
+      btn.addEventListener('click', handleRoleChange);
+    });
+  }
+
+  async function handleRoleChange(event) {
+    const btn = event.target;
+    const userId = btn.dataset.userId;
+    const action = btn.dataset.action;
+    const statusEl = document.getElementById(`status-${userId}`);
+    btn.disabled = true;
+    statusEl.textContent = 'Saving…';
+    statusEl.classList.remove('error');
+    try {
+      const csrfToken = await getCsrfToken();
+      const res = await fetch(`/api/editor/users/${userId}/${action}`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not save.');
+      statusEl.textContent = 'Saved';
+      await loadUsers(document.getElementById('userSearch').value.trim());
+    } catch (err) {
+      statusEl.textContent = err.message;
+      statusEl.classList.add('error');
+      btn.disabled = false;
+    }
+  }
+
+  (async function init() {
+    const meRes = await fetch('/api/me');
+    if (!meRes.ok) {
+      window.location.href = 'authentication.html';
+      return;
+    }
+    const me = await meRes.json();
+
+    const accountLink = document.getElementById('accountLink');
+    accountLink.textContent = me.is_editor ? 'Editor Dashboard' : 'My Submissions';
+    accountLink.href = me.is_editor ? 'editor-dashboard.html' : 'my-submissions.html';
+
+    if (!me.is_editor) {
+      document.getElementById('deniedNotice').classList.remove('hidden');
+      return;
+    }
+
+    const meFullRes = await fetch('/api/editor/users?search=' + encodeURIComponent(me.email));
+    if (meFullRes.ok) {
+      const matches = await meFullRes.json();
+      const self = matches.find((u) => u.email === me.email);
+      if (self) currentUserId = self.id;
+    }
+
+    document.getElementById('content').classList.remove('hidden');
+
+    let debounceTimer;
+    document.getElementById('userSearch').addEventListener('input', (e) => {
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => loadUsers(e.target.value.trim()), 200);
+    });
+
+    loadUsers('');
+  })();
+</script>
+</body>
+</html>

@@ -72,6 +72,13 @@ class Submission(db.Model):
     co_authors = db.relationship(
         "CoAuthor", backref="submission", lazy=True, cascade="all, delete-orphan"
     )
+    status_changes = db.relationship(
+        "StatusChange",
+        backref="submission",
+        lazy=True,
+        order_by="StatusChange.changed_at",
+        cascade="all, delete-orphan",
+    )
 
 
 class CoAuthor(db.Model):
@@ -80,3 +87,16 @@ class CoAuthor(db.Model):
     name = db.Column(db.String(200), nullable=False)
     email = db.Column(db.String(255), nullable=False)
     org = db.Column(db.String(300), nullable=False)
+
+
+class StatusChange(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey("submission.id"), nullable=False, index=True)
+    old_status = db.Column(db.String(50), nullable=True)  # null for the initial "submitted" entry
+    new_status = db.Column(db.String(50), nullable=False)
+    # Nullable so history survives even if the account that made the change
+    # is later deleted (not currently possible via the app, but the schema
+    # shouldn't assume it never will be).
+    changed_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    changed_by = db.relationship("User")
+    changed_at = db.Column(db.DateTime, nullable=False, default=utcnow)

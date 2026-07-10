@@ -95,9 +95,21 @@ proxy is actually in place).
   backed up — there is currently no automated backup.
 - SQLite is fine at this scale (a college journal) but has no built-in
   replication. If usage grows enough that concurrent-write contention
-  becomes a problem, that's the point to migrate to Postgres — the app
-  already goes through SQLAlchemy, so the model code wouldn't need to
-  change, just `SQLALCHEMY_DATABASE_URI`.
+  becomes a problem, that's the point to migrate to Postgres. Nothing in
+  the app is SQLite-specific — it's all SQLAlchemy ORM — so switching is
+  just:
+  1. `pip install -r requirements-postgres.txt` (adds `psycopg2-binary`
+     on top of the base requirements)
+  2. Set `DATABASE_URL` (e.g.
+     `postgresql://user:password@host:5432/jtead`) — `config.py` picks it
+     up automatically and also normalizes a `postgres://`-prefixed URL
+     (what Heroku and similar hosts hand out) to the `postgresql://` form
+     SQLAlchemy 1.4+ requires.
+  3. `flask db upgrade` against the new database — the existing migration
+     history creates the schema from scratch, same as it does for SQLite.
+  4. There's no built-in data migration from the old SQLite file — export/
+     import existing rows separately if this is a switch-over rather than
+     a fresh start.
 - **Schema changes go through Flask-Migrate.** `create_app()` no longer
   calls `db.create_all()` against a real database (only against tests'
   throwaway in-memory ones) — the actual schema comes from running

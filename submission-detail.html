@@ -13,6 +13,10 @@
   .detail-field p { margin: 0; }
   .detail-full { grid-column: 1 / -1; }
   .file-list a { display: inline-block; margin-right: 16px; }
+  .history-list { list-style: none; padding: 0; margin: 0; }
+  .history-list li { font-size: 14px; padding: 6px 0; border-bottom: 1px solid #f1f5f9; }
+  .history-list li:last-child { border-bottom: none; }
+  .history-list .history-date { color: #667085; font-size: 12px; margin-left: 8px; }
   .withdraw-btn { background: #b3261e; color: #fff; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 14px; margin-top: 24px; }
   .withdraw-btn:hover { background: #8f1e17; }
   .withdraw-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
@@ -115,6 +119,11 @@
       <div class="detail-field detail-full">
         <h4>Files</h4>
         <p class="file-list" id="fFiles"></p>
+      </div>
+
+      <div class="detail-field detail-full">
+        <h4>Status History</h4>
+        <ul id="fHistory" class="history-list"></ul>
       </div>
     </div>
 
@@ -231,6 +240,15 @@
       .map(([field, label]) => `<a href="/api/my-submissions/${s.id}/files/${field}">${escapeHtml(label)}</a>`)
       .join('');
 
+    document.getElementById('fHistory').innerHTML = s.history
+      .map((h) => {
+        const date = new Date(h.changed_at).toLocaleString(undefined, {
+          year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit',
+        });
+        return `<li>${escapeHtml(STATUS_LABELS[h.status] || h.status)}<span class="history-date">${date}</span></li>`;
+      })
+      .join('');
+
     const withdrawBtn = document.getElementById('withdrawBtn');
     if (!s.can_withdraw) {
       withdrawBtn.remove();
@@ -249,6 +267,10 @@
           const data = await wres.json().catch(() => ({}));
           if (!wres.ok) throw new Error(data.error || 'Could not withdraw this submission.');
           document.getElementById('fStatus').textContent = STATUS_LABELS.withdrawn;
+          document.getElementById('fHistory').insertAdjacentHTML(
+            'beforeend',
+            `<li>${escapeHtml(STATUS_LABELS.withdrawn)}<span class="history-date">${new Date().toLocaleString(undefined, { year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}</span></li>`
+          );
           statusEl.textContent = 'Withdrawn.';
           withdrawBtn.remove();
         } catch (err) {

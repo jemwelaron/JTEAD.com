@@ -21,8 +21,21 @@ class Config:
     INSTANCE_DIR = BASE_DIR.parent / "jtead-instance"
     UPLOAD_DIR = INSTANCE_DIR / "uploads"
 
-    SQLALCHEMY_DATABASE_URI = "sqlite:///" + str(INSTANCE_DIR / "jtead.db")
+    # SQLite is fine at this scale (a college journal) and needs zero setup,
+    # but has no real concurrent-write story. Set DATABASE_URL (e.g.
+    # postgresql+psycopg2://user:pass@host/dbname) to move to Postgres —
+    # nothing else in the app is SQLite-specific, it's all SQLAlchemy ORM.
+    _database_url = os.environ.get("DATABASE_URL")
+    if _database_url and _database_url.startswith("postgres://"):
+        # Some hosts (Heroku and others copying its convention) still hand
+        # out "postgres://" — SQLAlchemy 1.4+ only accepts "postgresql://".
+        _database_url = _database_url.replace("postgres://", "postgresql://", 1)
+    SQLALCHEMY_DATABASE_URI = _database_url or "sqlite:///" + str(INSTANCE_DIR / "jtead.db")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
+    # Recycles connections that a Postgres server (or any proxy in front of
+    # it) has silently dropped, instead of surfacing a broken-connection
+    # error on the next query. A no-op for SQLite's local file connections.
+    SQLALCHEMY_ENGINE_OPTIONS = {"pool_pre_ping": True}
 
     MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32MB hard cap across all files in one request
 

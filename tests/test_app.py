@@ -304,6 +304,14 @@ def test_submission_detail_returns_full_fields(client, valid_password, submissio
     assert data["can_withdraw"] is True
     assert data["co_authors"] == []
 
+    # A fresh submission already has one history entry recording its
+    # initial status, and the author-facing view never names who touched
+    # it (there's only ever been the author so far, but the shape should
+    # hold regardless).
+    assert len(data["history"]) == 1
+    assert data["history"][0]["status"] == "submitted"
+    assert "changed_by" not in data["history"][0]
+
 
 def test_submission_file_download_owner_only(client, valid_password, submission_form_data):
     from models import Submission
@@ -789,6 +797,50 @@ def test_editor_can_update_submission_status(client, valid_password, submission_
     assert db.session.get(Submission, submission_id).status == "under-review"
 
 
+def test_editor_status_change_recorded_in_history(client, valid_password, submission_form_data):
+    from models import Submission
+
+    signup(client, email="author15@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author15@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    client.post("/api/logout")
+
+    signup(client, email="editor12@example.com", password=valid_password, full_name="History Editor")
+    _promote_to_editor("editor12@example.com")
+    submission_id = Submission.query.first().id
+
+    client.post(f"/api/editor/submissions/{submission_id}/status", json={"status": "under-review"})
+    client.post(f"/api/editor/submissions/{submission_id}/status", json={"status": "accepted"})
+
+    resp = client.get(f"/api/editor/submissions/{submission_id}/history")
+    assert resp.status_code == 200
+    history = resp.get_json()
+    assert [h["new_status"] for h in history] == ["submitted", "under-review", "accepted"]
+    assert history[0]["old_status"] is None
+    assert history[1]["old_status"] == "submitted"
+    assert history[-1]["changed_by"] == "History Editor"
+
+
+def test_editor_submission_history_requires_editor_role(client, valid_password, submission_form_data):
+    signup(client, email="author16@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author16@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    resp = client.get("/api/editor/submissions/1/history")
+    assert resp.status_code == 403
+
+
+def test_withdraw_recorded_in_history(client, valid_password, submission_form_data):
+    signup(client, email="author17@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author17@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    client.post("/api/my-submissions/1/withdraw")
+
+    detail = client.get("/api/my-submissions/1").get_json()
+    assert [h["status"] for h in detail["history"]] == ["submitted", "withdrawn"]
+
+
 def test_editor_status_change_sends_email(client, valid_password, submission_form_data, monkeypatch):
     from models import Submission
 
@@ -876,6 +928,80 @@ def test_editor_file_download_missing_optional_file(client, valid_password, subm
     # submission_form_data never included a "supplementary" file.
     resp = client.get(f"/api/editor/submissions/{submission_id}/files/supplementary")
     assert resp.status_code == 404
+
+
+# ---------- Editor management ----------
+
+
+def test_list_users_requires_editor_role(client, valid_password):
+    signup(client, email="plainuser@example.com", password=valid_password)
+    resp = client.get("/api/editor/users")
+    assert resp.status_code == 403
+
+
+def test_list_users_search_matches_name_or_email(client, valid_password):
+    signup(client, email="findme@example.com", password=valid_password, full_name="Unique Findable Name")
+    signup(client, email="editor8@example.com", password=valid_password)
+    _promote_to_editor("editor8@example.com")
+
+    by_email = client.get("/api/editor/users?search=findme@example.com").get_json()
+    assert any(u["email"] == "findme@example.com" for u in by_email)
+
+    by_name = client.get("/api/editor/users?search=Findable").get_json()
+    assert any(u["email"] == "findme@example.com" for u in by_name)
+
+
+def test_promote_user_grants_editor_access(client, valid_password):
+    from models import User, db
+
+    signup(client, email="tobepromoted@example.com", password=valid_password)
+    client.post("/api/logout")
+
+    signup(client, email="editor9@example.com", password=valid_password)
+    _promote_to_editor("editor9@example.com")
+
+    target = User.query.filter_by(email="tobepromoted@example.com").first()
+    resp = client.post(f"/api/editor/users/{target.id}/promote")
+    assert resp.status_code == 200
+    assert db.session.get(User, target.id).is_editor is True
+
+
+def test_demote_user_removes_editor_access(client, valid_password):
+    from models import User, db
+
+    signup(client, email="tobedemoted@example.com", password=valid_password)
+    _promote_to_editor("tobedemoted@example.com")
+    client.post("/api/logout")
+
+    signup(client, email="editor10@example.com", password=valid_password)
+    _promote_to_editor("editor10@example.com")
+
+    target = User.query.filter_by(email="tobedemoted@example.com").first()
+    resp = client.post(f"/api/editor/users/{target.id}/demote")
+    assert resp.status_code == 200
+    assert db.session.get(User, target.id).is_editor is False
+
+
+def test_editor_cannot_demote_self(client, valid_password):
+    signup(client, email="editor11@example.com", password=valid_password)
+    _promote_to_editor("editor11@example.com")
+
+    from models import User, db
+
+    me = User.query.filter_by(email="editor11@example.com").first()
+    resp = client.post(f"/api/editor/users/{me.id}/demote")
+    assert resp.status_code == 400
+    assert db.session.get(User, me.id).is_editor is True
+
+
+def test_promote_user_requires_editor_role(client, valid_password):
+    from models import User, db
+
+    signup(client, email="notanadmin@example.com", password=valid_password)
+    other = User.query.filter_by(email="notanadmin@example.com").first()
+
+    resp = client.post(f"/api/editor/users/{other.id}/promote")
+    assert resp.status_code == 403
 
 
 # ---------- Security logging ----------

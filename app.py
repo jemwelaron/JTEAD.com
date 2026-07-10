@@ -25,7 +25,7 @@ from editor import editor_bp
 from extensions import csrf, limiter, login_manager, migrate
 from file_signatures import file_content_matches_extension
 from mailer import send_email
-from models import CoAuthor, Submission, User, db
+from models import CoAuthor, StatusChange, Submission, User, db
 from password_rules import validate_password_strength
 from security_log import security_logger
 from statuses import WITHDRAWABLE_STATUSES
@@ -515,6 +515,15 @@ def submit_article():
     db.session.add(submission)
     db.session.flush()
 
+    db.session.add(
+        StatusChange(
+            submission_id=submission.id,
+            old_status=None,
+            new_status=submission.status,
+            changed_by_user_id=current_user.id,
+        )
+    )
+
     co_names = form.getlist("coauth_name[]")
     co_emails = form.getlist("coauth_email[]")
     co_orgs = form.getlist("coauth_org[]")
@@ -597,6 +606,13 @@ def my_submission_detail(submission_id):
                 {"name": c.name, "email": c.email, "org": c.org} for c in submission.co_authors
             ],
             "can_withdraw": submission.status in WITHDRAWABLE_STATUSES,
+            # Author-facing history intentionally omits who made each change
+            # (editorial deliberation stays internal) — just what changed
+            # and when.
+            "history": [
+                {"status": h.new_status, "changed_at": h.changed_at.isoformat()}
+                for h in submission.status_changes
+            ],
         }
     )
 
@@ -628,7 +644,16 @@ def withdraw_submission(submission_id):
     if submission.status not in WITHDRAWABLE_STATUSES:
         return jsonify({"error": "This submission can no longer be withdrawn."}), 400
 
+    old_status = submission.status
     submission.status = "withdrawn"
+    db.session.add(
+        StatusChange(
+            submission_id=submission.id,
+            old_status=old_status,
+            new_status="withdrawn",
+            changed_by_user_id=current_user.id,
+        )
+    )
     db.session.commit()
     security_logger.info(f"submission withdrawn id={submission_id} user_id={current_user.id}")
     return jsonify({"ok": True})
