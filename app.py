@@ -24,6 +24,7 @@ from config import Config
 from editor import editor_bp
 from extensions import csrf, limiter, login_manager
 from file_signatures import file_content_matches_extension
+from mailer import send_email
 from models import CoAuthor, Submission, User, db
 from password_rules import validate_password_strength
 from security_log import security_logger
@@ -150,11 +151,10 @@ def me():
 
 # ---------- Password reset ----------
 #
-# No real email-delivery service (SMTP/SES/etc.) is configured yet, so the
-# reset link is logged server-side instead of emailed. Swap the `print` below
-# for a real mail send once credentials exist — everything else (token
-# generation/verification, expiry, single-use-until-password-changes) is
-# already production-shaped.
+# Actual delivery goes through mailer.send_email, which sends a real message
+# if SMTP_HOST is configured (see config.py) and otherwise falls back to
+# logging the link — so this works in dev without any mail provider set up,
+# and starts sending for real the moment SMTP env vars are added.
 
 
 @main_bp.route("/api/forgot-password", methods=["POST"])
@@ -168,7 +168,22 @@ def forgot_password():
         token = _reset_serializer().dumps({"user_id": user.id, "pw": user.password_hash[-16:]})
         reset_link = f"{request.host_url.rstrip('/')}/reset-password.html?token={token}"
         security_logger.info(f"password reset requested email={email} ip={request.remote_addr}")
-        print(f"[password reset link] {email}: {reset_link}", flush=True)
+        try:
+            send_email(
+                to=user.email,
+                subject="Reset your JTEAD password",
+                body=(
+                    "We received a request to reset your JTEAD account password.\n\n"
+                    f"Reset it here: {reset_link}\n\n"
+                    "This link expires in 1 hour. If you didn't request this, you can "
+                    "safely ignore this email."
+                ),
+            )
+        except Exception:
+            # Delivery failure shouldn't surface to the client — that would
+            # both leak whether the account exists and expose SMTP errors.
+            # Log it server-side instead so it's visible to an operator.
+            current_app.logger.exception(f"Failed to send password reset email to {email}")
 
     # Always return ok, whether or not the account exists, so this endpoint
     # can't be used to enumerate registered email addresses.

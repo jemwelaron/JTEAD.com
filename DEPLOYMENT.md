@@ -101,12 +101,19 @@ proxy is actually in place).
 
 ## 5. Email
 
-Password reset currently logs the reset link server-side (`security_logger`
-+ stdout) instead of emailing it — there's no SMTP/transactional-email
-service wired up yet. Before relying on this in production, wire
-`/api/forgot-password` in `app.py` up to a real provider (e.g. an SMTP
-relay via `smtplib`, or a service like SendGrid/Mailgun) and remove the
-`print()`.
+Password reset sends real email via `mailer.py` (plain `smtplib`, works with
+any standard SMTP relay — Gmail app passwords, an institutional SMTP server,
+or the SMTP endpoints SendGrid/Mailgun/etc. all expose). Set these in
+production `.env`:
+
+- `SMTP_HOST`, `SMTP_PORT` (default `587`)
+- `SMTP_USERNAME`, `SMTP_PASSWORD`
+- `SMTP_USE_TLS` (default on)
+- `MAIL_FROM` — the From address recipients see
+
+Until `SMTP_HOST` is set, it falls back to logging the reset link instead of
+emailing it (via the app logger), which is what dev currently relies on —
+so this is safe to leave unset locally, just don't deploy without it.
 
 ## 6. First editor account
 
@@ -125,5 +132,5 @@ FLASK_APP=wsgi.py flask make-editor
 - [ ] `RATELIMIT_STORAGE_URI` pointed at a shared backend if running >1 worker
 - [ ] gunicorn behind a reverse proxy, not exposed directly
 - [ ] `jtead-instance/` on persistent, backed-up storage
-- [ ] Real email delivery wired up for password reset
+- [ ] `SMTP_HOST`/`SMTP_USERNAME`/`SMTP_PASSWORD`/`MAIL_FROM` set for real password-reset email delivery
 - [ ] At least one editor account promoted

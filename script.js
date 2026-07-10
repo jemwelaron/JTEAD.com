@@ -1,4 +1,35 @@
 document.addEventListener("DOMContentLoaded", () => {
+  /* ---------- Site-wide account link (login state) ----------
+   * Pages like my-submissions.html and editor-dashboard.html already manage
+   * #accountLink themselves (they require auth, so they set href="#" up
+   * front). This only touches pages that still show the untouched default
+   * "My Account" -> authentication.html link, so it never double-handles
+   * the element or attaches a second logout listener on top of theirs. */
+  const accountLink = document.getElementById("accountLink");
+
+  if (accountLink && accountLink.getAttribute("href") === "authentication.html") {
+    fetch("/api/me")
+      .then((res) => (res.ok ? res.json() : null))
+      .then((me) => {
+        if (!me) return;
+
+        const destination = me.is_editor ? "editor-dashboard.html" : "my-submissions.html";
+        const destinationLabel = me.is_editor ? "Editor Dashboard" : "My Submissions";
+        accountLink.textContent = destinationLabel;
+        accountLink.href = destination;
+
+        accountLink.insertAdjacentHTML("afterend", ' <a href="#" id="logoutLink">Log Out</a>');
+        document.getElementById("logoutLink").addEventListener("click", async (e) => {
+          e.preventDefault();
+          const csrfRes = await fetch("/api/csrf-token");
+          const { csrf_token } = await csrfRes.json();
+          await fetch("/api/logout", { method: "POST", headers: { "X-CSRFToken": csrf_token } });
+          window.location.reload();
+        });
+      })
+      .catch(() => {});
+  }
+
   /* ---------- Homepage: announcements ---------- */
   const announceList = document.getElementById("announceList");
 

@@ -220,6 +220,25 @@ def test_forgot_password_known_email_returns_ok(client, valid_password):
     assert resp.get_json()["ok"] is True
 
 
+def test_forgot_password_still_ok_when_email_delivery_fails(client, valid_password, monkeypatch):
+    # SMTP_HOST isn't set in tests, so mailer.send_email already takes the
+    # logging fallback rather than hitting the network — this simulates the
+    # case where SMTP *is* configured but delivery throws, to confirm the
+    # client-facing response (and the anti-enumeration guarantee it makes)
+    # doesn't depend on delivery succeeding.
+    import app as app_module
+
+    def boom(**kwargs):
+        raise RuntimeError("smtp exploded")
+
+    monkeypatch.setattr(app_module, "send_email", boom)
+
+    signup(client, email="resetfail@example.com", password=valid_password)
+    resp = client.post("/api/forgot-password", json={"email": "resetfail@example.com"})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
 def _make_reset_token(app, email, password):
     from app import PASSWORD_RESET_SALT
     from itsdangerous import URLSafeTimedSerializer
@@ -340,6 +359,57 @@ def test_editor_rejects_invalid_status(client, valid_password, app):
 
     resp = client.post("/api/editor/submissions/1/status", json={"status": "not-a-real-status"})
     assert resp.status_code == 400
+
+
+def test_editor_can_download_submission_file(client, valid_password, submission_form_data, app):
+    from models import Submission
+
+    signup(client, email="author11@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author11@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    client.post("/api/logout")
+
+    signup(client, email="editor4@example.com", password=valid_password)
+    _promote_to_editor("editor4@example.com")
+    submission_id = Submission.query.first().id
+
+    resp = client.get(f"/api/editor/submissions/{submission_id}/files/manuscript")
+    assert resp.status_code == 200
+    assert resp.data.startswith(b"PK\x03\x04")
+
+
+def test_editor_file_download_requires_editor_role(client, valid_password, submission_form_data):
+    signup(client, email="author12@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author12@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    resp = client.get("/api/editor/submissions/1/files/manuscript")
+    assert resp.status_code == 403
+
+
+def test_editor_file_download_unknown_field(client, valid_password, app):
+    signup(client, email="editor5@example.com", password=valid_password)
+    _promote_to_editor("editor5@example.com")
+
+    resp = client.get("/api/editor/submissions/1/files/not-a-real-field")
+    assert resp.status_code == 400
+
+
+def test_editor_file_download_missing_optional_file(client, valid_password, submission_form_data, app):
+    from models import Submission
+
+    signup(client, email="author13@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author13@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    client.post("/api/logout")
+
+    signup(client, email="editor6@example.com", password=valid_password)
+    _promote_to_editor("editor6@example.com")
+    submission_id = Submission.query.first().id
+
+    # submission_form_data never included a "supplementary" file.
+    resp = client.get(f"/api/editor/submissions/{submission_id}/files/supplementary")
+    assert resp.status_code == 404
 
 
 # ---------- Security logging ----------

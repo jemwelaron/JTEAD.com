@@ -46,6 +46,15 @@ class Config:
     REMEMBER_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
 
+    # Password-reset emails. Leave SMTP_HOST unset to keep the dev fallback
+    # (link logged server-side instead of emailed) — see mailer.py.
+    SMTP_HOST = os.environ.get("SMTP_HOST")
+    SMTP_PORT = int(os.environ.get("SMTP_PORT", "587"))
+    SMTP_USERNAME = os.environ.get("SMTP_USERNAME")
+    SMTP_PASSWORD = os.environ.get("SMTP_PASSWORD")
+    SMTP_USE_TLS = os.environ.get("SMTP_USE_TLS", "1") == "1"
+    MAIL_FROM = os.environ.get("MAIL_FROM", "no-reply@jtead.local")
+
 
 class TestConfig(Config):
     """Used only by the pytest suite. Everything lives in-memory / under a

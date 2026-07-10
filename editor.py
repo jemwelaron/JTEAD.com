@@ -1,6 +1,6 @@
 from functools import wraps
 
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_login import current_user, login_required
 
 from models import Submission, db
@@ -10,6 +10,16 @@ editor_bp = Blueprint("editor", __name__, url_prefix="/api/editor")
 
 # Matches the STATUS_LABELS map in my-submissions.html / editor-dashboard.html.
 VALID_STATUSES = {"submitted", "under-review", "revision-requested", "accepted", "rejected"}
+
+# Maps the download URL's <field> segment to the Submission column that
+# holds its path — keeps the route from taking an arbitrary path directly
+# from the request; only these four known relationships are ever served.
+FILE_FIELD_COLUMNS = {
+    "manuscript": "manuscript_path",
+    "graphical_abstract": "graphical_abstract_path",
+    "cover_letter": "cover_letter_path",
+    "supplementary": "supplementary_path",
+}
 
 
 def editor_required(view):
@@ -38,10 +48,35 @@ def list_submissions():
                 "corresponding_name": s.corresponding_name,
                 "corresponding_email": s.corresponding_email,
                 "author_email": s.author.email,
+                "has_supplementary": bool(s.supplementary_path),
             }
             for s in submissions
         ]
     )
+
+
+@editor_bp.route("/submissions/<int:submission_id>/files/<field>")
+@editor_required
+def download_file(submission_id, field):
+    if field not in FILE_FIELD_COLUMNS:
+        return jsonify({"error": "Unknown file field."}), 400
+
+    submission = db.session.get(Submission, submission_id)
+    if not submission:
+        return jsonify({"error": "Submission not found."}), 404
+
+    relative_path = getattr(submission, FILE_FIELD_COLUMNS[field])
+    if not relative_path:
+        return jsonify({"error": "No file uploaded for this field."}), 404
+
+    security_logger.info(
+        f"submission file downloaded id={submission_id} field={field} by_user_id={current_user.id}"
+    )
+    # relative_path is server-generated (uuid dir + secure_filename, set at
+    # upload time) and read back from the database, never taken from this
+    # request — send_from_directory's own traversal guard is defense in
+    # depth here, not the primary protection.
+    return send_from_directory(current_app.config["UPLOAD_DIR"], relative_path, as_attachment=True)
 
 
 @editor_bp.route("/submissions/<int:submission_id>/status", methods=["POST"])

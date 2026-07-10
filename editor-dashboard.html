@@ -93,6 +93,7 @@
           <th>Title</th>
           <th>Track</th>
           <th>Corresponding Author</th>
+          <th>Files</th>
           <th>Submitted</th>
           <th>Status</th>
         </tr>
@@ -238,11 +239,21 @@
             return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(label)}</option>`;
           })
           .join('');
+        const fileLinks = [
+          ['manuscript', 'Manuscript'],
+          ['graphical_abstract', 'Graphical Abstract'],
+          ['cover_letter', 'Cover Letter'],
+          ...(s.has_supplementary ? [['supplementary', 'Supplementary']] : []),
+        ]
+          .map(([field, label]) => `<a href="/api/editor/submissions/${s.id}/files/${field}">${escapeHtml(label)}</a>`)
+          .join('<br>');
+
         return `
           <tr>
             <td>${escapeHtml(s.title)}</td>
             <td>${escapeHtml(s.track)}</td>
             <td>${escapeHtml(s.corresponding_name)}<br><span style="color:#667085;">${escapeHtml(s.corresponding_email)}</span></td>
+            <td>${fileLinks}</td>
             <td>${date}</td>
             <td>
               <select data-submission-id="${s.id}">${options}</select>
