@@ -22,12 +22,13 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from editor import editor_bp
-from extensions import csrf, limiter, login_manager
+from extensions import csrf, limiter, login_manager, migrate
 from file_signatures import file_content_matches_extension
 from mailer import send_email
 from models import CoAuthor, Submission, User, db
 from password_rules import validate_password_strength
 from security_log import security_logger
+from statuses import WITHDRAWABLE_STATUSES
 from submission_files import FILE_FIELD_COLUMNS
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -214,6 +215,44 @@ def resend_verification():
     if current_user.email_verified:
         return jsonify({"ok": True, "already_verified": True})
     _send_verification_email(current_user)
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/change-password", methods=["POST"])
+@login_required
+@limiter.limit("10/hour")
+def change_password():
+    data = request.get_json(silent=True) or {}
+    current_password = data.get("current_password") or ""
+    new_password = data.get("new_password") or ""
+
+    if not check_password_hash(current_user.password_hash, current_password):
+        security_logger.warning(f"change-password wrong current password user_id={current_user.id}")
+        return jsonify({"error": "Current password is incorrect."}), 401
+
+    password_error = validate_password_strength(
+        new_password, email=current_user.email, full_name=current_user.full_name
+    )
+    if password_error:
+        return jsonify({"error": password_error}), 400
+
+    current_user.password_hash = generate_password_hash(new_password)
+    db.session.commit()
+    security_logger.info(f"password changed email={current_user.email} ip={request.remote_addr}")
+
+    try:
+        send_email(
+            to=current_user.email,
+            subject="Your JTEAD password was changed",
+            body=(
+                "This is a confirmation that your JTEAD account password was just changed.\n\n"
+                "If you didn't make this change, reset your password immediately from the "
+                "sign-in page and contact the editorial office."
+            ),
+        )
+    except Exception:
+        current_app.logger.exception(f"Failed to send password-change notice to {current_user.email}")
+
     return jsonify({"ok": True})
 
 
@@ -483,12 +522,6 @@ def my_submissions():
     )
 
 
-# A submission can be pulled back by its author as long as it hasn't already
-# reached a final editorial decision — once accepted/rejected (or already
-# withdrawn), withdrawing no longer makes sense.
-WITHDRAWABLE_STATUSES = {"submitted", "under-review", "revision-requested"}
-
-
 @main_bp.route("/api/my-submissions/<int:submission_id>")
 @login_required
 def my_submission_detail(submission_id):
@@ -616,6 +649,7 @@ def create_app(config_object=Config):
     csrf.init_app(app)
     limiter.init_app(app)
     login_manager.init_app(app)
+    migrate.init_app(app, db)
 
     app.register_blueprint(main_bp)
     app.register_blueprint(editor_bp)
@@ -624,8 +658,14 @@ def create_app(config_object=Config):
 
     register_cli_commands(app)
 
-    with app.app_context():
-        db.create_all()
+    if app.config.get("TESTING"):
+        # Ephemeral in-memory databases don't need version tracking — just
+        # build them fresh from the current models every test run. Real
+        # databases (dev and prod) go through `flask db upgrade` instead,
+        # so that schema changes are actual migrations, not a table that
+        # silently stops matching what create_all() would produce.
+        with app.app_context():
+            db.create_all()
 
     return app
 

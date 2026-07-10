@@ -3,10 +3,23 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>My Submissions — JTEAD</title>
-<meta name="description" content="Track the status of manuscripts you've submitted to JTEAD." />
+<title>Account Settings — JTEAD</title>
 <link rel="icon" type="image/png" href="COT LOGO.png" />
 <link rel="stylesheet" href="styles.css" />
+<style>
+  .settings-card { max-width: 420px; margin-top: 24px; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+  .form-group input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
+  .field-hint { font-size: 12px; color: #777; margin: 6px 0 0; line-height: 1.4; }
+  .primary-action-btn { background: #aa844c; color: #fff; border: none; padding: 12px 20px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 15px; }
+  .primary-action-btn:hover { background: #967340; }
+  .primary-action-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+  .form-error { display: none; background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 10px 12px; font-size: 13px; margin: 0 0 16px; }
+  .form-error.visible { display: block; }
+  .form-success { display: none; background: #eaf6ec; color: #1e6b34; border: 1px solid #c2e5c8; border-radius: 4px; padding: 10px 12px; font-size: 13px; margin: 0 0 16px; }
+  .form-success.visible { display: block; }
+</style>
 </head>
 <body>
 
@@ -48,12 +61,8 @@
       <button class="nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
       <ul class="nav-list">
         <li><a href="index.html">HOME</a></li>
-        <li>
-          <a href="aims-and-scope.html">AIMS AND SCOPE</a>
-        </li>
-        <li>
-          <a href="author-guidelines.html">FOR AUTHORS</a>
-        </li>
+        <li><a href="aims-and-scope.html">AIMS AND SCOPE</a></li>
+        <li><a href="author-guidelines.html">FOR AUTHORS</a></li>
         <li><a href="current.html">CURRENT</a></li>
         <li><a href="archives.html">ARCHIVES</a></li>
         <li><a href="editorial-board.html">EDITORIAL BOARD</a></li>
@@ -66,25 +75,37 @@
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="index.html">Home</a>
     <span class="sep">&rsaquo;</span>
-    <span class="current current-gold">My Submissions</span>
+    <a href="my-submissions.html">My Submissions</a>
+    <span class="sep">&rsaquo;</span>
+    <span class="current current-gold">Account Settings</span>
   </nav>
 
   <div class="announce-header" style="align-items:flex-start; margin-bottom: 10px;">
     <div>
-      <h2 class="page-title">My Submissions</h2>
+      <h2 class="page-title">Account Settings</h2>
       <div class="title-underline"></div>
     </div>
-    <a class="btn-small-outline" href="Submit%20portal.html">+ New Submission</a>
   </div>
-  <p class="page-intro">Signed in as <strong id="accountName">&hellip;</strong> (<a href="account-settings.html">Account Settings</a>). Track the status of manuscripts you've submitted to JTEAD below.</p>
+  <p class="page-intro">Signed in as <strong id="accountName">&hellip;</strong> (<span id="accountEmail"></span>).</p>
 
-  <div id="verifyBanner" class="hidden" style="background:#fff8e6; border:1px solid #f0dca0; border-radius:6px; padding:14px 16px; margin-bottom:20px; font-size:14px;">
-    Please verify your email address before submitting a manuscript.
-    <a href="#" id="resendVerification">Resend verification email</a>
-    <span id="resendStatus" style="margin-left:8px; color:#1e6b34;"></span>
+  <div class="settings-card">
+    <h3>Change Password</h3>
+    <p class="form-error" id="form-error"></p>
+    <p class="form-success" id="form-success">Password updated.</p>
+
+    <form id="change-password-form">
+      <div class="form-group">
+        <label for="current-password">Current Password</label>
+        <input type="password" id="current-password" name="current_password" required placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label for="new-password">New Password</label>
+        <input type="password" id="new-password" name="new_password" required minlength="10" placeholder="Create secure password">
+        <p class="field-hint">At least 10 characters, with a letter and a number. Avoid common passwords or your name/email.</p>
+      </div>
+      <button type="submit" class="primary-action-btn">Update Password</button>
+    </form>
   </div>
-
-  <div id="submissionsList" style="margin-top: 28px;"></div>
 </main>
 
 <footer class="site-footer">
@@ -126,17 +147,22 @@
 </footer>
 
 <script src="issues-data.js"></script>
-<script src="status-labels.js"></script>
 <script src="script.js"></script>
 <script>
-  // Submission titles/tracks are free text the author typed into the
-  // submission form — never trust them as HTML. Uses the browser's own
-  // serializer (via textContent) rather than a hand-rolled replace, so it's
-  // correct for every character, not just the common cases.
-  function escapeHtml(value) {
-    const div = document.createElement('div');
-    div.textContent = value == null ? '' : String(value);
-    return div.innerHTML;
+  function showError(el, message) {
+    el.textContent = message;
+    el.classList.add('visible');
+  }
+
+  function clearError(el) {
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+
+  async function getCsrfToken() {
+    const res = await fetch('/api/csrf-token');
+    const data = await res.json();
+    return data.csrf_token;
   }
 
   (async function init() {
@@ -147,61 +173,45 @@
     }
     const me = await meRes.json();
     document.getElementById('accountName').textContent = me.full_name;
-
-    if (!me.email_verified) {
-      const banner = document.getElementById('verifyBanner');
-      banner.classList.remove('hidden');
-      document.getElementById('resendVerification').addEventListener('click', async (e) => {
-        e.preventDefault();
-        const statusEl = document.getElementById('resendStatus');
-        statusEl.textContent = 'Sending…';
-        const csrfRes = await fetch('/api/csrf-token');
-        const { csrf_token } = await csrfRes.json();
-        const res = await fetch('/api/resend-verification', {
-          method: 'POST',
-          headers: { 'X-CSRFToken': csrf_token },
-        });
-        statusEl.textContent = res.ok ? 'Sent — check your inbox.' : 'Could not send. Try again later.';
-      });
-    }
+    document.getElementById('accountEmail').textContent = me.email;
 
     const accountLink = document.getElementById('accountLink');
-    accountLink.textContent = 'Log Out';
-    accountLink.href = '#';
-    accountLink.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const csrfRes = await fetch('/api/csrf-token');
-      const { csrf_token } = await csrfRes.json();
-      await fetch('/api/logout', { method: 'POST', headers: { 'X-CSRFToken': csrf_token } });
-      window.location.href = 'index.html';
-    });
-
-    const listEl = document.getElementById('submissionsList');
-    const res = await fetch('/api/my-submissions');
-    const submissions = await res.json();
-
-    if (!submissions.length) {
-      listEl.innerHTML = '<p class="article-row-empty">You haven\'t submitted any manuscripts yet.</p>';
-      return;
-    }
-
-    listEl.innerHTML = submissions
-      .map((s) => {
-        const date = new Date(s.created_at).toLocaleDateString(undefined, {
-          year: 'numeric', month: 'long', day: 'numeric',
-        });
-        const statusLabel = STATUS_LABELS[s.status] || s.status;
-        return `
-          <div class="article-row">
-            <div>
-              <p class="article-row-title"><a href="submission-detail.html?id=${s.id}">${escapeHtml(s.title)}</a></p>
-              <p class="article-row-authors">${escapeHtml(s.track)} &middot; Submitted ${date}</p>
-            </div>
-            <span class="pdf-badge">${escapeHtml(statusLabel)}</span>
-          </div>`;
-      })
-      .join('');
+    const destination = me.is_editor ? 'editor-dashboard.html' : 'my-submissions.html';
+    const destinationLabel = me.is_editor ? 'Editor Dashboard' : 'My Submissions';
+    accountLink.textContent = destinationLabel;
+    accountLink.href = destination;
   })();
+
+  document.getElementById('change-password-form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const form = event.target;
+    const errorEl = document.getElementById('form-error');
+    const successEl = document.getElementById('form-success');
+    clearError(errorEl);
+    successEl.classList.remove('visible');
+
+    const btn = form.querySelector('button[type="submit"]');
+    btn.disabled = true;
+    try {
+      const csrfToken = await getCsrfToken();
+      const res = await fetch('/api/change-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({
+          current_password: form.current_password.value,
+          new_password: form.new_password.value,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
+      successEl.classList.add('visible');
+      form.reset();
+    } catch (err) {
+      showError(errorEl, err.message);
+    } finally {
+      btn.disabled = false;
+    }
+  });
 </script>
 </body>
 </html>

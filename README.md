@@ -13,6 +13,9 @@ cp .env.example .env
 # then edit .env and set a real SECRET_KEY:
 python -c "import secrets; print(secrets.token_hex(32))"
 
+export FLASK_APP="app:create_app()"
+flask db upgrade
+
 python app.py
 ```
 
@@ -21,7 +24,25 @@ set to in `.env`).
 
 The database and uploaded manuscripts live in `../jtead-instance/` (a
 sibling of this directory, outside anything Flask serves publicly) —
-`create_app()` creates it automatically on first run.
+`create_app()` creates the directory automatically, but the database
+schema itself comes from `flask db upgrade` (Flask-Migrate/Alembic), not
+from the app on its own.
+
+## Changing the database schema
+
+After editing a model in `models.py`:
+
+```
+export FLASK_APP="app:create_app()"
+flask db migrate -m "Describe the change"
+# review the generated file under migrations/versions/ before applying
+flask db upgrade
+```
+
+Commit the generated migration file alongside the model change. Tests don't
+need any of this — they build a fresh in-memory database from the current
+models on every run (see `tests/conftest.py`), so migrations only matter for
+the real dev/production database.
 
 ## Running tests
 

@@ -162,17 +162,9 @@
 </footer>
 
 <script src="issues-data.js"></script>
+<script src="status-labels.js"></script>
 <script src="script.js"></script>
 <script>
-  const STATUS_LABELS = {
-    submitted: "Submitted",
-    "under-review": "Under Review",
-    accepted: "Accepted",
-    rejected: "Rejected",
-    "revision-requested": "Revision Requested",
-    withdrawn: "Withdrawn",
-  };
-
   function escapeHtml(value) {
     const div = document.createElement('div');
     div.textContent = value == null ? '' : String(value);

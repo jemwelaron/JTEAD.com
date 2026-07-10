@@ -6,21 +6,10 @@ from flask_login import current_user, login_required
 from mailer import send_email
 from models import Submission, db
 from security_log import security_logger
+from statuses import EDITOR_SETTABLE_STATUSES, STATUS_LABELS
 from submission_files import FILE_FIELD_COLUMNS
 
 editor_bp = Blueprint("editor", __name__, url_prefix="/api/editor")
-
-# Matches the STATUS_LABELS map in my-submissions.html / editor-dashboard.html.
-VALID_STATUSES = {"submitted", "under-review", "revision-requested", "accepted", "rejected"}
-
-STATUS_LABELS = {
-    "submitted": "Submitted",
-    "under-review": "Under Review",
-    "revision-requested": "Revision Requested",
-    "accepted": "Accepted",
-    "rejected": "Rejected",
-    "withdrawn": "Withdrawn",
-}
 
 
 def editor_required(view):
@@ -85,7 +74,7 @@ def download_file(submission_id, field):
 def update_status(submission_id):
     data = request.get_json(silent=True) or {}
     new_status = data.get("status")
-    if new_status not in VALID_STATUSES:
+    if new_status not in EDITOR_SETTABLE_STATUSES:
         return jsonify({"error": "Invalid status."}), 400
 
     submission = db.session.get(Submission, submission_id)

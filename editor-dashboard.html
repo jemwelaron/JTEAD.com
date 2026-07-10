@@ -8,6 +8,10 @@
 <link rel="icon" type="image/png" href="COT LOGO.png" />
 <link rel="stylesheet" href="styles.css" />
 <style>
+  .dashboard-filters { display: flex; align-items: center; gap: 10px; margin-top: 24px; flex-wrap: wrap; }
+  .dashboard-filters input[type="text"] { flex: 1 1 260px; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; }
+  .dashboard-filters select { padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; }
+  .result-count { font-size: 13px; color: #667085; }
   .editor-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
   .editor-table th, .editor-table td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; vertical-align: top; }
   .editor-table th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
@@ -80,13 +84,20 @@
       <div class="title-underline"></div>
     </div>
   </div>
-  <p class="page-intro" id="pageIntro">Signed in as <strong id="accountName">&hellip;</strong>. Review submissions and update their status below.</p>
+  <p class="page-intro" id="pageIntro">Signed in as <strong id="accountName">&hellip;</strong> (<a href="account-settings.html">Account Settings</a>). Review submissions and update their status below.</p>
 
   <div id="deniedNotice" class="denied-notice hidden">
     You're signed in, but this account doesn't have editor access.
   </div>
 
   <div id="tableWrap" class="hidden">
+    <div class="dashboard-filters">
+      <input type="text" id="searchInput" placeholder="Search title, author, or email…" aria-label="Search submissions">
+      <select id="statusFilter" aria-label="Filter by status">
+        <option value="">All statuses</option>
+      </select>
+      <span id="resultCount" class="result-count"></span>
+    </div>
     <table class="editor-table">
       <thead>
         <tr>
@@ -142,17 +153,9 @@
 </footer>
 
 <script src="issues-data.js"></script>
+<script src="status-labels.js"></script>
 <script src="script.js"></script>
 <script>
-  const STATUS_LABELS = {
-    submitted: "Submitted",
-    "under-review": "Under Review",
-    accepted: "Accepted",
-    rejected: "Rejected",
-    "revision-requested": "Revision Requested",
-    withdrawn: "Withdrawn",
-  };
-
   // "withdrawn" is author-initiated only (see /api/my-submissions/<id>/withdraw)
   // — the editor status-update endpoint doesn't accept it, so it's left out
   // of the editable dropdown's own options entirely.
@@ -195,46 +198,32 @@
     }
   }
 
-  (async function init() {
-    const meRes = await fetch('/api/me');
-    if (!meRes.ok) {
-      window.location.href = 'authentication.html';
-      return;
-    }
-    const me = await meRes.json();
-    document.getElementById('accountName').textContent = me.full_name;
+  let allSubmissions = [];
 
-    const accountLink = document.getElementById('accountLink');
-    accountLink.textContent = 'Log Out';
-    accountLink.href = '#';
-    accountLink.addEventListener('click', async (e) => {
-      e.preventDefault();
-      const csrfToken = await getCsrfToken();
-      await fetch('/api/logout', { method: 'POST', headers: { 'X-CSRFToken': csrfToken } });
-      window.location.href = 'index.html';
-    });
+  function matchesFilters(s, query, status) {
+    if (status && s.status !== status) return false;
+    if (!query) return true;
+    const haystack = [s.title, s.track, s.corresponding_name, s.corresponding_email, s.author_email]
+      .join(' ')
+      .toLowerCase();
+    return haystack.includes(query);
+  }
 
-    if (!me.is_editor) {
-      document.getElementById('deniedNotice').classList.remove('hidden');
-      return;
-    }
+  function renderRows() {
+    const query = document.getElementById('searchInput').value.trim().toLowerCase();
+    const status = document.getElementById('statusFilter').value;
+    const filtered = allSubmissions.filter((s) => matchesFilters(s, query, status));
 
-    const res = await fetch('/api/editor/submissions');
-    if (!res.ok) {
-      document.getElementById('deniedNotice').classList.remove('hidden');
-      return;
-    }
-    const submissions = await res.json();
-
-    document.getElementById('tableWrap').classList.remove('hidden');
     const body = document.getElementById('submissionsBody');
+    document.getElementById('resultCount').textContent =
+      `${filtered.length} of ${allSubmissions.length} submission${allSubmissions.length === 1 ? '' : 's'}`;
 
-    if (!submissions.length) {
-      body.innerHTML = '<tr><td colspan="5">No submissions yet.</td></tr>';
+    if (!filtered.length) {
+      body.innerHTML = `<tr><td colspan="6">${allSubmissions.length ? 'No submissions match this filter.' : 'No submissions yet.'}</td></tr>`;
       return;
     }
 
-    body.innerHTML = submissions
+    body.innerHTML = filtered
       .map((s) => {
         const date = new Date(s.created_at).toLocaleDateString(undefined, {
           year: 'numeric', month: 'long', day: 'numeric',
@@ -273,9 +262,56 @@
       })
       .join('');
 
-    body.querySelectorAll('select').forEach((select) => {
+    body.querySelectorAll('select[data-submission-id]').forEach((select) => {
       select.addEventListener('change', handleStatusChange);
     });
+  }
+
+  (async function init() {
+    const meRes = await fetch('/api/me');
+    if (!meRes.ok) {
+      window.location.href = 'authentication.html';
+      return;
+    }
+    const me = await meRes.json();
+    document.getElementById('accountName').textContent = me.full_name;
+
+    const accountLink = document.getElementById('accountLink');
+    accountLink.textContent = 'Log Out';
+    accountLink.href = '#';
+    accountLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const csrfToken = await getCsrfToken();
+      await fetch('/api/logout', { method: 'POST', headers: { 'X-CSRFToken': csrfToken } });
+      window.location.href = 'index.html';
+    });
+
+    if (!me.is_editor) {
+      document.getElementById('deniedNotice').classList.remove('hidden');
+      return;
+    }
+
+    const res = await fetch('/api/editor/submissions');
+    if (!res.ok) {
+      document.getElementById('deniedNotice').classList.remove('hidden');
+      return;
+    }
+    allSubmissions = await res.json();
+
+    document.getElementById('tableWrap').classList.remove('hidden');
+
+    const statusFilter = document.getElementById('statusFilter');
+    Object.entries(STATUS_LABELS).forEach(([value, label]) => {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      statusFilter.appendChild(option);
+    });
+
+    document.getElementById('searchInput').addEventListener('input', renderRows);
+    statusFilter.addEventListener('change', renderRows);
+
+    renderRows();
   })();
 </script>
 </body>

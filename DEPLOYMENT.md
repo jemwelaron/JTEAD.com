@@ -98,17 +98,15 @@ proxy is actually in place).
   becomes a problem, that's the point to migrate to Postgres — the app
   already goes through SQLAlchemy, so the model code wouldn't need to
   change, just `SQLALCHEMY_DATABASE_URI`.
-- **No migration tool yet.** `create_app()` only calls `db.create_all()`,
-  which creates missing tables but never alters existing ones — adding a
-  column to `models.py` (as this project has already done twice, for
-  `is_editor` and `email_verified`) does nothing to a database that already
-  has the old schema, and every query against the new column then fails.
-  Harmless right now since there's no real user data yet — the dev fix is
-  just deleting `jtead-instance/jtead.db` and letting it rebuild. Once
-  there's real production data, that stops being an option: add
-  [Flask-Migrate](https://flask-migrate.readthedocs.io/) (Alembic) before
-  the next schema change, so it becomes an `ALTER TABLE` migration instead
-  of a choice between "broken" and "wipe the database."
+- **Schema changes go through Flask-Migrate.** `create_app()` no longer
+  calls `db.create_all()` against a real database (only against tests'
+  throwaway in-memory ones) — the actual schema comes from running
+  `flask db upgrade`. Run it once before the very first deploy, and again
+  after pulling any change that includes a new file under
+  `migrations/versions/`. See the "Changing the database schema" section in
+  `README.md` for the day-to-day workflow. This is what makes future model
+  changes an `ALTER TABLE` against real data instead of the choice between
+  "broken" and "wipe the database" that bit local dev before this was set up.
 
 ## 5. Email
 
@@ -138,6 +136,7 @@ FLASK_APP=wsgi.py flask make-editor
 ## Pre-launch checklist
 
 - [ ] Fresh `SECRET_KEY`, not reused from dev
+- [ ] `flask db upgrade` run against the production database
 - [ ] `FLASK_DEBUG=0`
 - [ ] `SESSION_COOKIE_SECURE=1`, served over real HTTPS
 - [ ] `RATELIMIT_STORAGE_URI` pointed at a shared backend if running >1 worker

@@ -333,6 +333,71 @@ def test_submit_article_rate_limited(client, valid_password, app):
     assert 429 in statuses
 
 
+# ---------- Change password ----------
+
+
+def test_change_password_requires_login(client):
+    resp = client.post(
+        "/api/change-password", json={"current_password": "x", "new_password": "NewPassword99"}
+    )
+    assert resp.status_code == 401
+
+
+def test_change_password_wrong_current_password(client, valid_password):
+    signup(client, email="changepw1@example.com", password=valid_password)
+    resp = client.post(
+        "/api/change-password",
+        json={"current_password": "totallywrong", "new_password": "NewPassword99"},
+    )
+    assert resp.status_code == 401
+
+
+def test_change_password_weak_new_password(client, valid_password):
+    signup(client, email="changepw2@example.com", password=valid_password)
+    resp = client.post(
+        "/api/change-password", json={"current_password": valid_password, "new_password": "short1"}
+    )
+    assert resp.status_code == 400
+
+
+def test_change_password_success_and_can_login_with_new_password(client, valid_password):
+    signup(client, email="changepw3@example.com", password=valid_password)
+    resp = client.post(
+        "/api/change-password",
+        json={"current_password": valid_password, "new_password": "BrandNewPass99"},
+    )
+    assert resp.status_code == 200
+
+    client.post("/api/logout")
+    login_resp = client.post(
+        "/api/login", json={"email": "changepw3@example.com", "password": "BrandNewPass99"}
+    )
+    assert login_resp.status_code == 200
+
+    old_login_resp = client.post(
+        "/api/login", json={"email": "changepw3@example.com", "password": valid_password}
+    )
+    assert old_login_resp.status_code == 401
+
+
+def test_change_password_sends_notification_email(client, valid_password, monkeypatch):
+    import app as app_module
+
+    sent = {}
+    monkeypatch.setattr(
+        app_module, "send_email", lambda to, subject, body: sent.update(to=to, subject=subject)
+    )
+
+    signup(client, email="changepw4@example.com", password=valid_password)
+    client.post(
+        "/api/change-password",
+        json={"current_password": valid_password, "new_password": "BrandNewPass99"},
+    )
+
+    assert sent["to"] == "changepw4@example.com"
+    assert "password was changed" in sent["subject"].lower()
+
+
 # ---------- Password reset ----------
 
 
