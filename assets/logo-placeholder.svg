@@ -1,0 +1,8 @@
+<svg width="64" height="64" viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="32" cy="32" r="31" fill="#ffffff" stroke="#0d1f4c" stroke-width="2"/>
+  <circle cx="32" cy="32" r="26" fill="none" stroke="#0d1f4c" stroke-width="1"/>
+  <text x="32" y="28" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" font-weight="bold" fill="#0d1f4c">COLLEGE OF</text>
+  <text x="32" y="36" text-anchor="middle" font-family="Arial, sans-serif" font-size="7" font-weight="bold" fill="#0d1f4c">TECHNOLOGY</text>
+  <rect x="24" y="40" width="16" height="10" fill="#c08a3e"/>
+  <text x="32" y="48" text-anchor="middle" font-family="Arial, sans-serif" font-size="5" fill="#ffffff">1946</text>
+</svg>

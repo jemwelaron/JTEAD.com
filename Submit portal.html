@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JTEAD | Manuscript Submission Portal</title>
+  <style>
+    :root {
+      --primary-blue: #002147;
+      --gold-accent: #aa844c;
+      --text-dark: #1e293b;
+      --border-color: #cbd5e1;
+      --bg-body: #ffffff;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-body);
+      color: var(--text-dark);
+      margin: 0;
+      padding: 40px 20px;
+    }
+
+    .portal-container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .main-title {
+      text-align: center;
+      color: var(--primary-blue);
+      font-size: 26px;
+      font-weight: 800;
+      letter-spacing: 0.5px;
+      margin-bottom: 30px;
+      text-transform: uppercase;
+    }
+
+    .form-card {
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 30px rgba(0, 0, 0, 0.04);
+      border: 1px solid #e2e8f0;
+      padding: 40px;
+    }
+
+    /* Layout Grid Configurations */
+    .master-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 40px;
+    }
+
+    .section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--primary-blue);
+      margin-top: 0;
+      margin-bottom: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 8px;
+    }
+
+    .form-group-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px 20px;
+    }
+
+    .full-width {
+      grid-column: span 2;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+    }
+
+    label {
+      font-weight: 600;
+      font-size: 12.5px;
+      margin-bottom: 6px;
+      color: #0f172a;
+    }
+
+    label span {
+      color: #dc2626;
+      margin-left: 2px;
+    }
+
+    input[type="text"], input[type="email"], input[type="number"], select, textarea {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      box-sizing: border-box;
+      font-size: 13.5px;
+      color: #334155;
+      background-color: #ffffff;
+      transition: border-color 0.15s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: none;
+      border-color: var(--primary-blue);
+    }
+
+    .counter-text, .field-hint {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+    .counter-text { text-align: right; }
+
+    /* Custom File Input Container Frame */
+    .file-picker-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      padding: 6px 10px;
+      background-color: #f8fafc;
+      cursor: pointer;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    .file-trigger-btn {
+      background: #ffffff;
+      border: 1px solid #cbd5e1;
+      padding: 5px 12px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      color: #334155;
+    }
+
+    .file-status-label {
+      font-size: 12px;
+      color: #64748b;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sub-section-box {
+      border: 1px solid #e2e8f0;
+      border-radius: 6px;
+      padding: 20px;
+      margin-top: 20px;
+      background-color: #ffffff;
+    }
+
+    .inline-action-btn {
+      background: #ffffff;
+      border: 1px solid var(--primary-blue);
+      color: var(--primary-blue);
+      padding: 8px 16px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      width: fit-content;
+      margin-top: 16px;
+      transition: background 0.15s;
+    }
+    .inline-action-btn:hover {
+      background: #f0f4f8;
+    }
+
+    /* Supplementary / Disclosures Layout Row */
+    .full-width-footer-section {
+      grid-column: span 2;
+      margin-top: 30px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 30px;
+    }
+
+    .checkbox-row {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .checkbox-row input {
+      margin-top: 3px;
+      accent-color: var(--primary-blue);
+    }
+    .checkbox-row label {
+      font-weight: normal;
+      font-size: 13px;
+      color: #334155;
+      cursor: pointer;
+      line-height: 1.4;
+    }
+
+    .form-footer-actions {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 40px;
+      border-top: 1px solid #e2e8f0;
+      padding-top: 24px;
+    }
+
+    .bottom-btn {
+      padding: 12px 36px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .bottom-btn:hover { opacity: 0.9; }
+
+    .btn-gold { background-color: var(--gold-accent); color: #ffffff; border: none; }
+    .btn-gray { background-color: #64748b; color: #ffffff; border: none; }
+    .btn-link-cancel { background: transparent; border: none; color: #94a3b8; text-decoration: underline; }
+
+    /* Collapsible Animation Area */
+    .conditional-panel {
+      display: none;
+      animation: fadeIn 0.25s ease-out;
+      margin-top: 12px;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .success-banner {
+      display: none;
+      background: #ecfdf3;
+      color: #05603a;
+      border: 1px solid #a6f4c5;
+      border-radius: 8px;
+      padding: 16px 20px;
+      margin-bottom: 24px;
+      font-size: 14px;
+      font-weight: 600;
+    }
+    .success-banner.visible { display: block; }
+
+    .form-error-banner {
+      display: none;
+      background: #fdecea;
+      color: #b3261e;
+      border: 1px solid #f5c6c2;
+      border-radius: 8px;
+      padding: 14px 18px;
+      margin-bottom: 24px;
+      font-size: 13.5px;
+    }
+    .form-error-banner.visible { display: block; }
+  </style>
+</head>
+<body>
+
+<div class="portal-container">
+
+  <h1 class="main-title">Manuscript Submission Portal</h1>
+
+  <p class="success-banner" id="successBanner">Thank you! Your manuscript has been received and is now under initial review.</p>
+  <p class="form-error-banner" id="formErrorBanner"></p>
+
+  <form class="form-card" id="submissionPortalForm" action="/submit-article" method="POST" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" id="csrfTokenField" value="">
+
+    <div class="master-grid">
+
+      <div class="left-column">
+        <h2 class="section-title">1. Primary Details</h2>
+
+        <div class="form-group-grid">
+          <div class="form-group full-width">
+            <label for="track">Desired Track <span>*</span></label>
+            <select id="track" name="track" required>
+              <option value="">Select Dropdown</option>
+              <option value="chemical-engineering">Chemical Engineering</option>
+              <option value="civil-engineering">Civil Engineering</option>
+              <option value="mechanical-engineering">Mechanical Engineering</option>
+              <option value="landscape-architecture">Landscape Architecture</option>
+              <option value="architecture">Architecture</option>
+              <option value="electronics-engineering">Electronics Engineering</option>
+              <option value="fine-arts">Fine Arts</option>
+              <option value="interior-design">Interior Design</option>
+              <option value="computer-engineering">Computer Engineering</option>
+              <option value="interdisciplinary-research">Interdisciplinary Research</option>
+               <option value="others">Others</option>
+            </select>
+          </div>
+<div class="form-group full-width">
+            <label for="keywords">Subject Area Keywords <span>*</span></label>
+            <input type="text" id="keywords" name="keywords" required placeholder="Enter keywords...">
+          </div>
+
+          <div class="form-group full-width">
+            <label for="title">Manuscript Title <span>*</span></label>
+            <input type="text" id="title" name="articleTitle" required placeholder="Enter manuscript title">
+          </div>
+
+          <div class="form-group full-width">
+            <label for="abstract">Abstract <span>*</span></label>
+            <textarea id="abstract" name="abstract" rows="6" required placeholder="Enter abstract of your manuscript" maxlength="3000" oninput="handleTextareaCounter()"></textarea>
+            <div class="counter-text" id="counter">0 / 3000</div>
+          </div>
+
+          <div class="form-group full-width">
+            <label>Anonymized Manuscript File <span>*</span></label>
+            <div class="file-picker-wrapper" onclick="document.getElementById('file-anon').click()">
+              <button type="button" class="file-trigger-btn">Choose File</button>
+              <span class="file-status-label" id="label-file-anon">No file chosen</span>
+              <input type="file" id="file-anon" name="manuscript" style="display:none" required onchange="syncFileText('file-anon')">
+            </div>
+            <div class="field-hint">Format Allowed: doc, docx, rtf (Max 5MB)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-column">
+        <h2 class="section-title">2. Corresponding Author Details</h2>
+
+        <div class="form-group-grid">
+          <div class="form-group">
+            <label for="ca-name">Full Name <span>*</span></label>
+            <input type="text" id="ca-name" name="studentName" required placeholder="Enter full name">
+          </div>
+
+          <div class="form-group">
+            <label for="ca-phone">Mobile No. <span>*</span></label>
+            <input type="text" id="ca-phone" name="ca-phone" required placeholder="Enter mobile number">
+          </div>
+
+          <div class="form-group">
+            <label for="ca-email">Email Address <span>*</span></label>
+            <input type="email" id="ca-email" name="ca-email" required placeholder="Enter email address">
+          </div>
+
+          <div class="form-group">
+            <label for="ca-whatsapp">WhatsApp No.</label>
+            <input type="text" id="ca-whatsapp" name="ca-whatsapp" placeholder="e.g. +447123456789">
+          </div>
+
+          <div class="form-group full-width">
+            <label for="ca-org">Institution / University / College <span>*</span></label>
+            <input type="text" id="ca-org" name="ca-org" required placeholder="Enter organization name">
+          </div>
+
+          <div class="form-group">
+            <label for="ca-dept">Department</label>
+            <input type="text" id="ca-dept" name="ca-dept" placeholder="Enter department">
+          </div>
+
+          <div class="form-group">
+            <label for="ca-city">City <span>*</span></label>
+            <input type="text" id="ca-city" name="ca-city" required placeholder="Enter city">
+          </div>
+
+          <div class="form-group">
+            <label for="ca-state">State / Province</label>
+            <input type="text" id="ca-state" name="ca-state" placeholder="Enter state or province">
+          </div>
+
+          <div class="form-group">
+            <label for="ca-country">Country <span>*</span></label>
+            <select id="ca-country" name="ca-country" required>
+              <option value="">Select country</option>
+              <option value="PH">Philippines</option>
+              <option value="US">United States</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ca-identity">Your Submission Role <span>*</span></label>
+            <select id="ca-identity" name="ca-identity" required>
+              <option value="author">Author</option>
+              <option value="co-author">Co-Author</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="ca-category">Author Category <span>*</span></label>
+            <select id="ca-category" name="ca-category" required>
+              <option value="">Select category</option>
+              <option value="faculty">Faculty / Researcher</option>
+              <option value="student">Student</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="coauthors-container"></div>
+
+        <button type="button" class="inline-action-btn" onclick="addCoAuthor()">+ Add Co-Author / Assistant</button>
+      </div>
+
+      <div class="full-width-footer-section">
+        <h2 class="section-title">3. Accompanying Documentation & Disclosures</h2>
+        
+        <div class="form-group-grid" style="margin-bottom: 30px;">
+          <div class="form-group">
+            <label>Graphical Abstract <span>*</span></label>
+            <div class="file-picker-wrapper" onclick="document.getElementById('file-graphical').click()">
+              <button type="button" class="file-trigger-btn">Choose File</button>
+              <span class="file-status-label" id="label-file-graphical">No file chosen</span>
+              <input type="file" id="file-graphical" name="graphical_abstract" style="display:none" required onchange="syncFileText('file-graphical')">
+            </div>
+            <div class="field-hint">Format Allowed: pdf, png, tiff, jpeg (Max 5MB)</div>
+          </div>
+
+          <div class="form-group">
+            <label>Cover Letter <span>*</span></label>
+            <div class="file-picker-wrapper" onclick="document.getElementById('file-cover').click()">
+              <button type="button" class="file-trigger-btn">Choose File</button>
+              <span class="file-status-label" id="label-file-cover">No file chosen</span>
+              <input type="file" id="file-cover" name="cover_letter" style="display:none" required onchange="syncFileText('file-cover')">
+            </div>
+            <div class="field-hint">Format Allowed: doc, docx, rtf (Max 5MB)</div>
+          </div>
+
+          <div class="form-group">
+            <label for="coi-status">Conflict of Interest Disclosure <span>*</span></label>
+            <select id="coi-status" name="coi-status" required onchange="toggleCoiPanel()">
+              <option value="no">No, there is no conflict of interest to declare</option>
+              <option value="yes">Yes, I have a conflict of interest to declare</option>
+            </select>
+            <div class="conditional-panel" id="coi-text-panel">
+              <textarea id="coi-details" name="coi-details" rows="3" placeholder="Please specify your conflict of interest (e.g., funding sources, institutional ties)..."></textarea>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label>Supplementary Data File (Optional)</label>
+            <div style="display: flex; gap: 10px; align-items: flex-start;">
+              <input type="text" name="supplementary-description" style="flex: 2;" placeholder="Describe data (e.g., Dataset 1, Code Appendix)">
+              <div class="file-picker-wrapper" style="flex: 3;" onclick="document.getElementById('file-supplementary').click()">
+                <button type="button" class="file-trigger-btn">Choose File</button>
+                <span class="file-status-label" id="label-file-supplementary">No file chosen</span>
+                <input type="file" id="file-supplementary" name="supplementary" style="display:none" onchange="syncFileText('file-supplementary')">
+              </div>
+            </div>
+            <div class="field-hint">Max Size: 10MB (Datasets, CSVs, Scripts)</div>
+          </div>
+        </div>
+
+        <div class="declaration-group">
+          <div class="checkbox-row">
+            <input type="checkbox" id="eth-1" name="eth-1" required>
+            <label for="eth-1">I declare that the statement regarding conflict of interest provided above is completely accurate.</label>
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="eth-2" name="eth-2" required>
+            <label for="eth-2">I confirm double-blind compliance has been evaluated and all author trace strings have been stripped from the primary manuscript document file.</label>
+          </div>
+          <div class="checkbox-row">
+            <input type="checkbox" id="eth-3" name="eth-3" required>
+            <label for="eth-3">I agree to the copyright transfer declarations and authorize review tracking metrics to be transmitted to the provided organizational credentials.</label>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="form-footer-actions">
+      <button type="button" class="bottom-btn btn-gray" onclick="alert('Draft progress saved successfully.')">Save Draft</button>
+      <button type="submit" class="bottom-btn btn-gold">SUBMIT MANUSCRIPT</button>
+      <button type="button" class="bottom-btn btn-link-cancel" onclick="window.history.back()">Cancel</button>
+    </div>
+
+  </form>
+</div>
+
+<template id="coauthor-template">
+  <div class="sub-section-box co-author-entry" style="animation: fadeIn 0.25s ease-out; position: relative;">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+      <h3 style="margin: 0; font-size: 13.5px; color: var(--gold-accent); text-transform: uppercase;">Co-Author Information</h3>
+      <button type="button" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; font-weight: 600;" onclick="removeCoAuthor(this)">✕ Remove</button>
+    </div>
+    
+    <div class="form-group-grid">
+      <div class="form-group">
+        <label>Full Name <span>*</span></label>
+        <input type="text" name="coauth_name[]" required placeholder="Enter full name">
+      </div>
+      <div class="form-group">
+        <label>Email Address <span>*</span></label>
+        <input type="email" name="coauth_email[]" required placeholder="Enter email address">
+      </div>
+      <div class="form-group full-width">
+        <label>Institution / University <span>*</span></label>
+        <input type="text" name="coauth_org[]" required placeholder="Enter organization name">
+      </div>
+    </div>
+  </div>
+</template>
+
+<script>
+  // Monitor character density profile logs
+  function handleTextareaCounter() {
+    const area = document.getElementById('abstract');
+    const display = document.getElementById('counter');
+    display.innerText = `${area.value.length} / 3000`;
+  }
+
+  // Update field label tags on file selection updates
+  function syncFileText(elementId) {
+    const selectorInput = document.getElementById(elementId);
+    const labelUpdateTarget = document.getElementById(`label-${elementId}`);
+    
+    if(selectorInput.files.length > 0) {
+      labelUpdateTarget.innerText = selectorInput.files[0].name;
+    } else {
+      labelUpdateTarget.innerText = "No file chosen";
+    }
+  }
+
+  // Show/Hide Conflict of Interest details box conditionally
+  function toggleCoiPanel() {
+    const selector = document.getElementById('coi-status');
+    const panel = document.getElementById('coi-text-panel');
+    const textarea = document.getElementById('coi-details');
+    
+    if (selector.value === 'yes') {
+      panel.style.display = 'block';
+      textarea.setAttribute('required', 'required');
+    } else {
+      panel.style.display = 'none';
+      textarea.removeAttribute('required');
+      textarea.value = '';
+    }
+  }
+
+  // Handle addition of co-author nodes dynamically
+  function addCoAuthor() {
+    const template = document.getElementById('coauthor-template');
+    const clone = template.content.cloneNode(true);
+    document.getElementById('coauthors-container').appendChild(clone);
+  }
+
+  // Remove corresponding author element frames safely
+  function removeCoAuthor(button) {
+    const entryCard = button.closest('.co-author-entry');
+    if (entryCard) {
+      entryCard.remove();
+    }
+  }
+
+  // Require sign-in before letting anyone fill out the form. The real
+  // enforcement is server-side on POST /submit-article — this is just so an
+  // anonymous visitor isn't left filling out the whole thing before finding out.
+  (async function guardAndInit() {
+    try {
+      const res = await fetch('/api/me');
+      if (!res.ok) {
+        window.location.href = 'authentication.html';
+        return;
+      }
+    } catch (err) {
+      window.location.href = 'authentication.html';
+      return;
+    }
+
+    const csrfRes = await fetch('/api/csrf-token');
+    const csrfData = await csrfRes.json();
+    document.getElementById('csrfTokenField').value = csrfData.csrf_token;
+
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('submitted') === '1') {
+      document.getElementById('successBanner').classList.add('visible');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+    const error = params.get('error');
+    if (error) {
+      const banner = document.getElementById('formErrorBanner');
+      banner.textContent = decodeURIComponent(error);
+      banner.classList.add('visible');
+    }
+  })();
+</script>
+
+</body>
+</html>

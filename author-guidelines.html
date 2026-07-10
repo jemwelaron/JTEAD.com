@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Author Guidelines — JTEAD</title>
+<meta name="description" content="Author guidelines for submitting manuscripts to JTEAD, including manuscript structure, formatting, and publication ethics." />
+<link rel="icon" type="image/png" href="COT LOGO.png" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="container">
+      <a href="https://usa.edu.ph" target="_blank" rel="noopener">University of San Agustin</a>
+      <a href="authentication.html">My Account</a>
+      <a href="#footerContact">Contact Us</a>
+    </div>
+  </div>
+
+  <div class="site-header">
+    <div class="container">
+      <div class="brand">
+        <img src="COT LOGO.png" class="logo" alt="JTEAD Logo">
+        <div class="brand-text">
+          <h1>JOURNAL OF TECHNOLOGY, ENGINEERING,<br />ARCHITECTURE AND DESIGN</h1>
+          <p>A peer reviewed journal of the<br />College of Technology, University of San Agustin</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn-submit" href="authentication.html">Submit Manuscript
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+        </a>
+        <div class="search-wrap">
+          <label class="search-box">
+            <input type="text" id="siteSearchInput" placeholder="Search Article..." aria-label="Search Article" autocomplete="off" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          </label>
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="main-nav">
+    <div class="container">
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <ul class="nav-list">
+        <li><a href="index.html">HOME</a></li>
+        <li>
+          <a href="aims-and-scope.html">AIMS AND SCOPE</a>
+        </li>
+        <li>
+          <a href="author-guidelines.html">FOR AUTHORS</a>
+        </li>
+        <li><a href="current.html">CURRENT</a></li>
+        <li><a href="archives.html">ARCHIVES</a></li>
+        <li><a href="editorial-board.html">EDITORIAL BOARD</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main class="container guidelines-layout">
+  <aside class="guidelines-sidebar">
+    <button class="sidebar-toggle-mobile" type="button" aria-expanded="false" aria-controls="guidelinesNav">
+      Table of Contents <span class="chevron">&#9662;</span>
+    </button>
+
+    <nav class="guidelines-nav" id="guidelinesNav">
+      <h3 class="guidelines-nav-title">ABOUT THE JOURNAL</h3>
+
+      <ul class="toc-list">
+        <li class="toc-group open">
+          <div class="toc-parent">
+            <a class="toc-link" href="#journal-overview">Journal Overview</a>
+            <button class="toc-arrow" type="button" aria-label="Toggle section">&#9662;</button>
+          </div>
+          <ul class="toc-sublist">
+            <li><a href="#vision">Vision</a></li>
+            <li><a href="#mission">Mission</a></li>
+            <li><a href="#future-direction">Future Direction</a></li>
+          </ul>
+        </li>
+
+        <li class="toc-group open">
+          <div class="toc-parent">
+            <a class="toc-link" href="#types-of-articles">Types of Articles</a>
+            <button class="toc-arrow" type="button" aria-label="Toggle section">&#9662;</button>
+          </div>
+          <ul class="toc-sublist">
+            <li><a href="#original-research-articles">Original Research Articles</a></li>
+            <li><a href="#review-articles">Review Articles</a></li>
+            <li><a href="#technical-notes">Technical Notes</a></li>
+            <li><a href="#short-communications">Short Communications</a></li>
+            <li><a href="#case-studies">Case Studies</a></li>
+            <li><a href="#design-research">Design Research</a></li>
+            <li><a href="#educational-innovation-papers">Educational Innovation Papers</a></li>
+            <li><a href="#perspective-articles">Perspective Articles</a></li>
+            <li><a href="#letters-to-the-editor">Letters to the Editor</a></li>
+          </ul>
+        </li>
+
+        <li class="toc-group open">
+          <div class="toc-parent">
+            <a class="toc-link" href="#publication-ethics">Publication Ethics</a>
+            <button class="toc-arrow" type="button" aria-label="Toggle section">&#9662;</button>
+          </div>
+          <ul class="toc-sublist">
+            <li><a href="#ethical-principles">Ethical Principles</a></li>
+            <li><a href="#responsibilities-of-authors">Responsibilities of Authors</a></li>
+            <li><a href="#authorship">Authorship</a></li>
+            <li><a href="#originality-and-plagiarism">Originality and Plagiarism</a></li>
+            <li><a href="#duplicate-submission-and-redundant-publication">Duplicate Submission and Redundant Publication</a></li>
+            <li><a href="#data-integrity">Data Integrity</a></li>
+            <li><a href="#image-integrity">Image Integrity</a></li>
+            <li><a href="#artificial-intelligence">Artificial Intelligence</a></li>
+            <li><a href="#human-participants-and-animal-research">Human Participants and Animal Research</a></li>
+            <li><a href="#indigenous-knowledge-and-community-engagement">Indigenous Knowledge and Community Engagement</a></li>
+            <li><a href="#ethics-conflict-of-interest">Conflict of Interest</a></li>
+            <li><a href="#reviewer-responsibilities">Reviewer Responsibilities</a></li>
+            <li><a href="#editorial-responsibilities">Editorial Responsibilities</a></li>
+            <li><a href="#corrections-and-retractions">Corrections and Retractions</a></li>
+            <li><a href="#appeals-and-complaints">Appeals and Complaints</a></li>
+            <li><a href="#publication-ethics-workflow">Publication Ethics Workflow</a></li>
+            <li><a href="#ethics-checklist-for-authors">Ethics Checklist for Authors</a></li>
+          </ul>
+        </li>
+
+        <li class="toc-group open">
+          <div class="toc-parent">
+            <a class="toc-link" href="#preparing-your-manuscript">Preparing Your Manuscript</a>
+            <button class="toc-arrow" type="button" aria-label="Toggle section">&#9662;</button>
+          </div>
+          <ul class="toc-sublist">
+            <li><a href="#general-requirements">General Requirements</a></li>
+            <li><a href="#language">Language</a></li>
+
+            <li class="toc-subgroup open">
+              <div class="toc-parent">
+                <a class="toc-link" href="#file-format-and-title-page-requirements">File Format and Title Page Requirements</a>
+                <button class="toc-arrow" type="button" aria-label="Toggle section">&#9662;</button>
+              </div>
+              <ul class="toc-sublist toc-sublist-nested">
+                <li><a href="#file-format">File Format</a></li>
+                <li><a href="#accepted-file-formats">Accepted File Formats</a></li>
+                <li><a href="#manuscript-structure-format">Manuscript structure</a></li>
+                <li><a href="#title-page-requirements">Title Page Requirements</a></li>
+                <li><a href="#article-title">Article Title</a></li>
+                <li><a href="#author-information">Author Information</a></li>
+                <li><a href="#corresponding-author">Corresponding Author</a></li>
+              </ul>
+            </li>
+
+            <li><a href="#manuscript-structure">Manuscript Structure</a></li>
+            <li><a href="#abstract">Abstract</a></li>
+            <li><a href="#keywords">Keywords</a></li>
+            <li><a href="#introduction">Introduction</a></li>
+            <li><a href="#materials-and-methods">Materials and Methods</a></li>
+            <li><a href="#results">Results</a></li>
+            <li><a href="#discussion">Discussion</a></li>
+            <li><a href="#conclusions">Conclusions</a></li>
+            <li><a href="#acknowledgements">Acknowledgements</a></li>
+            <li><a href="#funding-statement">Funding Statement</a></li>
+            <li><a href="#author-contributions">Author Contributions</a></li>
+            <li><a href="#conflict-of-interest">Conflict of Interest</a></li>
+            <li><a href="#data-availability-statement">Data Availability Statement</a></li>
+            <li><a href="#references-within-text">References Within Text</a></li>
+            <li><a href="#reference-verification-and-linking">Reference Verification and Linking</a></li>
+            <li><a href="#web-references">Web References</a></li>
+            <li><a href="#data-references">Data References</a></li>
+            <li><a href="#preprint-references">Preprint References</a></li>
+            <li><a href="#reference-management-software">Reference Management Software</a></li>
+            <li><a href="#appendices">Appendices</a></li>
+            <li><a href="#manuscript-preparation-checklist">Manuscript Preparation Checklist</a></li>
+          </ul>
+        </li>
+      </li>
+
+        <li class="toc-group open">
+          <div class="toc-parent">
+            <a class="toc-link" href="#artwork-figures-tables-equations-references-and-supplementary-materials">Artwork, Figures, Tables, Equations, References, and Supplementary Materials</a>
+            <button class="toc-arrow" type="button" aria-label="Toggle section">&#9662;</button>
+          </div>
+          <ul class="toc-sublist">
+            <li><a href="#artwork-introduction">Introduction</a></li>
+            <li><a href="#artwork-and-figures">Artwork and Figures</a></li>
+            <li><a href="#engineering-drawings-and-design-outputs">Engineering Drawings and Design Outputs</a></li>
+            <li><a href="#color-and-accessibility">Color and Accessibility</a></li>
+            <li><a href="#tables">Tables</a></li>
+            <li><a href="#mathematical-equations">Mathematical Equations</a></li>
+            <li><a href="#units-symbols-and-nomenclature">Units, Symbols, and Nomenclature</a></li>
+            <li><a href="#supplementary-materials">Supplementary Materials</a></li>
+            <li><a href="#graphical-abstract">Graphical Abstract</a></li>
+            <li><a href="#research-highlights">Research Highlights</a></li>
+            <li><a href="#submission-quality-checklist">Submission Quality Checklist</a></li>
+          </ul>
+        </li>
+
+        <li class="toc-group open">
+          <div class="toc-parent">
+            <a class="toc-link" href="#submission-process">Submission Process</a>
+            <button class="toc-arrow" type="button" aria-label="Toggle section">&#9662;</button>
+          </div>
+          <ul class="toc-sublist">
+            <li><a href="#pre-submission-requirements">Pre-submission Requirements</a></li>
+            <li><a href="#required-submission-files">Required Submission Files</a></li>
+            <li><a href="#cover-letter">Cover Letter</a></li>
+            <li><a href="#editorial-office-screening">Editorial Office Screening</a></li>
+            <li><a href="#initial-editorial-assessment">Initial Editorial Assessment</a></li>
+            <li><a href="#reviewer-selection">Reviewer Selection</a></li>
+            <li><a href="#revision-process">Revision Process</a></li>
+            <li><a href="#acceptance">Acceptance</a></li>
+            <li><a href="#withdrawal-of-manuscripts">Withdrawal of Manuscripts</a></li>
+            <li><a href="#author-responsibilities">Author Responsibilities</a></li>
+          </ul>
+        </li>
+      </ul>
+    </nav>
+  </aside>
+
+  <article class="guidelines-content">
+    <h2 id="journal-overview">Journal Overview</h2>
+    <p>The Journal of Technology, Engineering, Architecture and Design (JTEAD) is the official peer-reviewed research journal of the College of Technology, University of San Agustin. It publishes original research, reviews, and design-based scholarship that advance knowledge and practice across technology, engineering, architecture, and design disciplines.</p>
+
+    <h3 id="vision">Vision</h3>
+    <p>To be a recognized platform for scholarly research that bridges technology, engineering, architecture, and design in service of sustainable development and community progress.</p>
+
+    <h3 id="mission">Mission</h3>
+    <p>JTEAD is committed to disseminating high-quality, ethically sound research; fostering interdisciplinary collaboration among students, faculty, and practitioners; and supporting evidence-based innovation that benefits industry, education, and society.</p>
+
+    <h3 id="future-direction">Future Direction</h3>
+    <p>The journal aims to expand its readership and contributor base beyond the University of San Agustin, pursue indexing in recognized regional and international databases, and continue strengthening its editorial and peer-review processes in line with international publishing standards.</p>
+
+    <h2 id="types-of-articles">Types of Articles</h2>
+    <p>JTEAD accepts several categories of manuscripts, each subject to the journal's editorial and peer-review standards. Authors should select the category that best matches the nature and scope of their work.</p>
+
+    <h3 id="original-research-articles">Original Research Articles</h3>
+    <p>Reports of original, previously unpublished research findings following the IMRaD structure (Introduction, Methods, Results, and Discussion).</p>
+
+    <h3 id="review-articles">Review Articles</h3>
+    <p>Comprehensive, critical syntheses of existing literature on a specific topic that identify trends, gaps, and directions for future research.</p>
+
+    <h3 id="technical-notes">Technical Notes</h3>
+    <p>Short reports describing a novel technique, tool, methodology, or piece of equipment relevant to the journal's scope, without necessarily presenting complete research findings.</p>
+
+    <h3 id="short-communications">Short Communications</h3>
+    <p>Brief reports of preliminary or focused research findings that merit rapid dissemination but do not warrant a full-length article.</p>
+
+    <h3 id="case-studies">Case Studies</h3>
+    <p>Detailed accounts of a specific project, application, or real-world problem, illustrating practical solutions relevant to engineering, technology, architecture, or design practice.</p>
+
+    <h3 id="design-research">Design Research</h3>
+    <p>Manuscripts documenting design-based inquiry, including design processes, prototypes, and design outputs in architecture, engineering, and related creative disciplines.</p>
+
+    <h3 id="educational-innovation-papers">Educational Innovation Papers</h3>
+    <p>Studies presenting innovative pedagogical approaches, curriculum development, or instructional technologies applied to technology, engineering, architecture, and design education.</p>
+
+    <h3 id="perspective-articles">Perspective Articles</h3>
+    <p>Opinion or position papers offering informed commentary on emerging issues, trends, or challenges within the journal's fields of interest.</p>
+
+    <h3 id="letters-to-the-editor">Letters to the Editor</h3>
+    <p>Short communications responding to previously published articles, or raising issues of relevance to the journal's readership.</p>
+
+    <h2 id="publication-ethics">Publication Ethics</h2>
+    <p>JTEAD adheres to the publication ethics and malpractice standards set forth by the Committee on Publication Ethics (COPE). All parties involved in the publication process—authors, reviewers, and editors—are expected to uphold these standards.</p>
+
+    <h3 id="ethical-principles">Ethical Principles</h3>
+    <p>The journal is committed to ensuring that all published research complies with recognized ethical standards for academic publishing, honesty, and accountability.</p>
+
+    <h3 id="responsibilities-of-authors">Responsibilities of Authors</h3>
+    <p>Authors are responsible for the accuracy and integrity of their submitted work, for ensuring all co-authors approve the final manuscript, and for disclosing any conflicts of interest or funding sources.</p>
+
+    <h3 id="authorship">Authorship</h3>
+    <p>Authorship should be limited to individuals who have made a significant contribution to the conception, design, execution, or interpretation of the study, and who agree to be accountable for its content.</p>
+
+    <h3 id="originality-and-plagiarism">Originality and Plagiarism</h3>
+    <p>Submitted manuscripts must be original work. Authors must ensure that they have written entirely original works, and that the work or words of others have been appropriately cited or quoted.</p>
+
+    <h3 id="duplicate-submission-and-redundant-publication">Duplicate Submission and Redundant Publication</h3>
+    <p>Manuscripts submitted to JTEAD must not be under consideration elsewhere, and must not substantially duplicate previously published work.</p>
+
+    <h3 id="data-integrity">Data Integrity</h3>
+    <p>Authors must present an accurate account of the research performed and provide sufficient detail and raw data, where requested, to allow for verification of results.</p>
+
+    <h3 id="image-integrity">Image Integrity</h3>
+    <p>Figures and images must accurately represent the original data. Any adjustment to brightness, contrast, or color balance must be applied uniformly and disclosed where it affects interpretation.</p>
+
+    <h3 id="artificial-intelligence">Artificial Intelligence</h3>
+    <p>The use of AI and AI-assisted technologies in the writing process must be disclosed in the manuscript. AI tools cannot be listed as authors and do not bear responsibility for the content of the manuscript.</p>
+
+    <h3 id="human-participants-and-animal-research">Human Participants and Animal Research</h3>
+    <p>Research involving human participants or animals must comply with relevant ethical guidelines and institutional approvals, and the manuscript must state that informed consent or ethical clearance was obtained.</p>
+
+    <h3 id="indigenous-knowledge-and-community-engagement">Indigenous Knowledge and Community Engagement</h3>
+    <p>Research involving indigenous communities or traditional knowledge must demonstrate appropriate community consultation, consent, and respect for cultural protocols.</p>
+
+    <h3 id="ethics-conflict-of-interest">Conflict of Interest</h3>
+    <p>All authors, reviewers, and editors must disclose any financial, personal, or professional relationships that could be perceived as influencing the objectivity of the research or the review process.</p>
+
+    <h3 id="reviewer-responsibilities">Reviewer Responsibilities</h3>
+    <p>Reviewers are expected to provide objective, constructive, and timely evaluations, maintain confidentiality of the manuscript, and disclose any conflicts of interest that may affect their review.</p>
+
+    <h3 id="editorial-responsibilities">Editorial Responsibilities</h3>
+    <p>Editors are responsible for making fair, unbiased decisions on manuscripts based on their scholarly merit, free from commercial or personal considerations.</p>
+
+    <h3 id="corrections-and-retractions">Corrections and Retractions</h3>
+    <p>The journal will issue corrections, clarifications, or retractions as necessary when errors, misconduct, or ethical violations are identified in published work.</p>
+
+    <h3 id="appeals-and-complaints">Appeals and Complaints</h3>
+    <p>Authors who wish to appeal an editorial decision or raise a complaint regarding the review process may do so in writing to the Editorial Office, which will investigate the matter following the journal's established procedures.</p>
+
+    <h3 id="publication-ethics-workflow">Publication Ethics Workflow</h3>
+    <p>Ethical concerns raised at any stage of submission or after publication are investigated by the Editorial Board following a defined workflow of screening, inquiry, and resolution.</p>
+
+    <h3 id="ethics-checklist-for-authors">Ethics Checklist for Authors</h3>
+    <p>Before submission, authors should confirm originality, disclose conflicts of interest, secure necessary ethics approvals, and ensure all co-authors have consented to the submission.</p>
+
+    <h2 id="preparing-your-manuscript">Preparing Your Manuscript</h2>
+    <p>This section outlines the formatting, structural, and technical requirements authors must follow when preparing a manuscript for submission to JTEAD.</p>
+
+    <h3 id="general-requirements">General Requirements</h3>
+    <p>Manuscripts must be typed in a legible font (e.g., Times New Roman, 12pt), double-spaced, with 1-inch margins on all sides, and include continuous line and page numbers.</p>
+
+    <h3 id="language">Language</h3>
+    <p>Manuscripts must be written in clear, formal academic English. Authors who are non-native English speakers are encouraged to have their manuscript proofread prior to submission.</p>
+
+    <h3 id="file-format-and-title-page-requirements">File Format and Title Page Requirements</h3>
+    <p>Manuscripts must adhere to the following file, structural, and title page requirements before they can be accepted for review.</p>
+
+    <h4 id="file-format">File Format</h4>
+    <p>Manuscripts should be submitted as an editable Microsoft Word (.doc or .docx) file.</p>
+
+    <h4 id="accepted-file-formats">Accepted File Formats</h4>
+    <p>Accepted file formats include .docx, .doc, and .pdf for the main manuscript; figures should be submitted separately in .jpg, .png, or .tiff format at a minimum of 300 dpi.</p>
+
+    <h4 id="manuscript-structure-format">Manuscript structure</h4>
+    <p>The manuscript should follow a logical structure consisting of a title page, abstract, keywords, main body, and references, as detailed in the sections below.</p>
+
+    <h4 id="title-page-requirements">Title Page Requirements</h4>
+    <p>The title page must be submitted as a separate section and include the article title, author names, affiliations, and corresponding author details.</p>
+
+    <h4 id="article-title">Article Title</h4>
+    <p>The title should be concise, specific, and informative, accurately reflecting the content and scope of the study.</p>
+
+    <h4 id="author-information">Author Information</h4>
+    <p>Full names, institutional affiliations, and ORCID iDs (if available) must be provided for each author.</p>
+
+    <h4 id="corresponding-author">Corresponding Author</h4>
+    <p>One author must be designated as the corresponding author and provide a complete mailing address, email, and contact number for editorial correspondence.</p>
+
+    <h3 id="manuscript-structure">Manuscript Structure</h3>
+    <p>The main body of the manuscript should generally follow the IMRaD format: Introduction, Methods, Results, and Discussion, followed by a Conclusion and References.</p>
+
+    <h3 id="abstract">Abstract</h3>
+    <p>The abstract should be a single paragraph of 200–300 words summarizing the objective, methodology, key findings, and significance of the study.</p>
+
+    <h3 id="keywords">Keywords</h3>
+    <p>Authors should provide 4–6 keywords that reflect the main topics of the manuscript to aid indexing and searchability.</p>
+    <p>Keywords should be separated by commas, should not repeat words already used in the title, and should use standard terms commonly found in the field.</p>
+
+    <h3 id="introduction">Introduction</h3>
+    <p>The Introduction should place the study in context, explain the problem being addressed, and state the research objectives clearly. It should give readers enough background to understand the significance of the work.</p>
+
+    <h3 id="materials-and-methods">Materials and Methods</h3>
+    <p>The Materials and Methods section should describe experimental design, data collection, materials, tools, and procedures in sufficient detail to allow replication. Include any software, equipment, or analytical approaches used.</p>
+
+    <h3 id="results">Results</h3>
+    <p>The Results section should present findings clearly and objectively, using tables, figures, and descriptive text as needed. Avoid interpretation in this section; reserve that for Discussion.</p>
+
+    <h3 id="discussion">Discussion</h3>
+    <p>The Discussion should interpret the results, compare them with existing literature, explain their significance, and discuss limitations and implications for future research.</p>
+
+    <h3 id="conclusions">Conclusions</h3>
+    <p>Conclusions should summarize the main findings and highlight the practical or theoretical contributions of the study. Keep this section concise and focused on the core messages.</p>
+
+    <h3 id="acknowledgements">Acknowledgements</h3>
+    <p>The Acknowledgements section may recognize funding sources, institutional support, and individuals who contributed to the work but do not meet authorship criteria.</p>
+
+    <h3 id="funding-statement">Funding Statement</h3>
+    <p>If applicable, include a Funding Statement that lists the financial support received for the work, including grant numbers and funding agencies.</p>
+
+    <h3 id="author-contributions">Author Contributions</h3>
+    <p>Provide a brief description of each author's contribution to the research, manuscript preparation, and submission process.</p>
+
+    <h3 id="conflict-of-interest">Conflict of Interest</h3>
+    <p>Authors must disclose any financial or personal relationships that could influence the work. If none exist, include a statement that the authors have no conflicts of interest.</p>
+
+    <h3 id="data-availability-statement">Data Availability Statement</h3>
+    <p>Include a statement describing whether and how the data supporting the findings are available, including any access restrictions.</p>
+
+    <h3 id="references-within-text">References Within Text</h3>
+    <p>Cite all sources used in the manuscript consistently and accurately. Follow the journal's reference style for in-text citations and bibliography entries.</p>
+
+    <h3 id="reference-verification-and-linking">Reference Verification and Linking</h3>
+    <p>Ensure that all references are correct, complete, and verifiable. Include DOIs or URLs where available, and check that all cited works are actually referenced in the text.</p>
+
+    <h3 id="web-references">Web References</h3>
+    <p>Web references should include the author or organization, title, website name, URL, and date accessed.</p>
+
+    <h3 id="data-references">Data References</h3>
+    <p>Data references should cite the dataset source, repository or archive, DOI, and any relevant accession numbers.</p>
+
+    <h3 id="preprint-references">Preprint References</h3>
+    <p>Preprints may be cited if they are relevant, but authors should clearly indicate their preprint status and include the source or DOI.</p>
+
+    <h3 id="reference-management-software">Reference Management Software</h3>
+    <p>Authors may use reference management software to format citations, but should verify the final reference list for consistency and accuracy.</p>
+
+    <h3 id="appendices">Appendices</h3>
+    <p>Appendices may be used for supplementary material that is important but not essential to the main text, such as detailed data tables or additional figures.</p>
+
+    <h3 id="manuscript-preparation-checklist">Manuscript Preparation Checklist</h3>
+    <p>Use a checklist to confirm that the manuscript includes all required sections, follows formatting guidelines, and contains accurate references, figures, tables, and author information.</p>
+
+    <h2 id="artwork-figures-tables-equations-references-and-supplementary-materials">Artwork, Figures, Tables, Equations, References, and Supplementary Materials</h2>
+    <p>This section explains how to prepare and submit artwork, figures, tables, equations, and supplementary files for review and publication.</p>
+
+    <h3 id="artwork-introduction">Introduction</h3>
+    <p>Artwork should be clear, legible, and suitable for both print and digital presentation. Follow the journal's guidance on resolution, size, and format.</p>
+
+    <h3 id="artwork-and-figures">Artwork and Figures</h3>
+    <p>Submit figures as separate high-resolution files and include descriptive captions. Ensure that all images are appropriately labeled and referenced in the text.</p>
+
+    <h3 id="engineering-drawings-and-design-outputs">Engineering Drawings and Design Outputs</h3>
+    <p>Engineering drawings and design outputs should be submitted at a resolution that preserves detail and clarity. Provide scale, dimensions, and notation as needed.</p>
+
+    <h3 id="color-and-accessibility">Color and Accessibility</h3>
+    <p>Use color thoughtfully and ensure that figures remain understandable when printed in grayscale. Avoid color combinations that are inaccessible to color-blind readers.</p>
+
+    <h3 id="tables">Tables</h3>
+    <p>Tables should be numbered consecutively and include clear headings. Place tables close to the first text reference and keep them concise.</p>
+
+    <h3 id="mathematical-equations">Mathematical Equations</h3>
+    <p>Number equations sequentially and format them consistently. Define all symbols and abbreviations used in equations.</p>
+
+    <h3 id="units-symbols-and-nomenclature">Units, Symbols, and Nomenclature</h3>
+    <p>Use standard units and symbols consistently throughout the manuscript. Define any specialized or uncommon notation.</p>
+
+    <h3 id="supplementary-materials">Supplementary Materials</h3>
+    <p>Supplementary materials may include datasets, videos, code, or additional figures. Submit these files separately and provide a description in the manuscript.</p>
+
+    <h3 id="graphical-abstract">Graphical Abstract</h3>
+    <p>If a graphical abstract is provided, it should summarize the key message of the paper visually and be suitable for online display.</p>
+
+    <h3 id="research-highlights">Research Highlights</h3>
+    <p>Research highlights are brief bullet points that summarize the main contributions and significance of the work.</p>
+
+    <h3 id="submission-quality-checklist">Submission Quality Checklist</h3>
+    <p>Before submission, verify that the manuscript meets the journal's formatting and content requirements, including author information, references, figures, and ethical statements.</p>
+
+    <h2 id="submission-process">Submission Process</h2>
+    <p>This section outlines the steps authors should expect from manuscript submission through editorial review and publication decisions.</p>
+
+    <h3 id="pre-submission-requirements">Pre-submission Requirements</h3>
+    <p>Ensure the manuscript is complete, complies with formatting rules, and includes all required supporting documents before submission.</p>
+
+    <h3 id="required-submission-files">Required Submission Files</h3>
+    <p>Required files typically include the main manuscript, title page, abstract, figures, tables, supplementary materials, and a cover letter.</p>
+
+    <h3 id="cover-letter">Cover Letter</h3>
+    <p>The cover letter should introduce the manuscript, explain its significance, and confirm that the work is original and not under consideration elsewhere.</p>
+
+    <h3 id="editorial-office-screening">Editorial Office Screening</h3>
+    <p>The editorial office performs an initial screening for scope, completeness, formatting, and compliance with ethical standards.</p>
+
+    <h3 id="initial-editorial-assessment">Initial Editorial Assessment</h3>
+    <p>The Editor-in-Chief or assigned editor evaluates the manuscript's suitability for review and may reject or send it for peer review.</p>
+
+    <h3 id="reviewer-selection">Reviewer Selection</h3>
+    <p>Appropriate reviewers are selected based on expertise, and authors may be asked to suggest potential reviewers or identify those with conflicts of interest.</p>
+
+    <h3 id="revision-process">Revision Process</h3>
+    <p>Authors may receive reviewer comments and requested revisions. Revised manuscripts should include a response letter describing how each comment was addressed.</p>
+
+    <h3 id="acceptance">Acceptance</h3>
+    <p>If accepted, the manuscript proceeds to production and publication, subject to final editorial approval and any required formatting adjustments.</p>
+
+    <h3 id="withdrawal-of-manuscripts">Withdrawal of Manuscripts</h3>
+    <p>Authors may request withdrawal prior to acceptance, but should do so only for valid reasons and notify the editorial office promptly.</p>
+
+    <h3 id="author-responsibilities">Author Responsibilities</h3>
+    <p>Authors are responsible for the accuracy of their work, disclosure of conflicts, proper authorship attribution, and adherence to journal policies.</p>
+  </article>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <h5>About JTEAD</h5>
+      <p>The official research journal of the College of Technology, University of San Agustin, dedicated to advancing knowledge in technology, engineering, architecture, and design</p>
+    </div>
+    <div>
+      <h5>Quick Links</h5>
+      <ul>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="current.html">Current issue</a></li>
+        <li><a href="archives.html">Archives</a></li>
+        <li><a href="authentication.html">Submit manuscript</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>For Authors</h5>
+      <ul>
+        <li><a href="author-guidelines.html">Author Guidelines</a></li>
+        <li><a href="author-guidelines.html#submission-process">Submission Process</a></li>
+        <li><a href="review-process.html">Review Process</a></li>
+        <li><a href="copyright-policy.html">Copyright Policy</a></li>
+      </ul>
+    </div>
+    <div id="footerContact">
+      <h5>Contact</h5>
+      <p>College of Technology<br />University of San Agustin<br />Iloilo City, Philippines<br />cea@usa.edu.ph</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; 2025 Journal of Technology, Engineering, Architecture and Design, All rights reserved</p>
+    <div class="legal-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-use.html">Terms of use</a>
+    </div>
+  </div>
+</footer>
+
+<script src="issues-data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

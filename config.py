@@ -1,0 +1,36 @@
+import os
+from pathlib import Path
+
+BASE_DIR = Path(__file__).resolve().parent
+
+
+class Config:
+    SECRET_KEY = os.environ.get("SECRET_KEY")
+    if not SECRET_KEY:
+        raise RuntimeError(
+            "SECRET_KEY is not set. Create a .env file with a real SECRET_KEY "
+            "(generate one with: python -c \"import secrets; print(secrets.token_hex(32))\")."
+        )
+
+    # IMPORTANT: this must live OUTSIDE the project directory. app.py serves the
+    # entire project root as static files (static_folder='.'), so anything placed
+    # inside the project root — including a conventionally-named "instance/"
+    # folder — is directly downloadable by anyone who guesses/finds the URL.
+    # Keeping the database and uploaded manuscripts as a sibling directory is
+    # what actually keeps them off the public static route.
+    INSTANCE_DIR = BASE_DIR.parent / "jtead-instance"
+    UPLOAD_DIR = INSTANCE_DIR / "uploads"
+
+    SQLALCHEMY_DATABASE_URI = "sqlite:///" + str(INSTANCE_DIR / "jtead.db")
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+    MAX_CONTENT_LENGTH = 32 * 1024 * 1024  # 32MB hard cap across all files in one request
+
+    DEBUG = os.environ.get("FLASK_DEBUG", "0") == "1"
+
+    SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SAMESITE = "Lax"
+    # Only send the session cookie over HTTPS once this is actually deployed behind TLS.
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
+
+    WTF_CSRF_TIME_LIMIT = None  # tokens don't expire mid-form-fill

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Archives — JTEAD</title>
+<meta name="description" content="Browse past issues of the Journal of Technology, Engineering, Architecture and Design (JTEAD)." />
+<link rel="icon" type="image/png" href="COT LOGO.png" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="container">
+      <a href="https://usa.edu.ph" target="_blank" rel="noopener">University of San Agustin</a>
+      <a href="authentication.html">My Account</a>
+      <a href="#footerContact">Contact Us</a>
+    </div>
+  </div>
+
+  <div class="site-header">
+    <div class="container">
+      <div class="brand">
+        <img src="COT LOGO.png" class="logo" alt="JTEAD Logo">
+        <div class="brand-text">
+          <h1>JOURNAL OF TECHNOLOGY, ENGINEERING,<br />ARCHITECTURE AND DESIGN</h1>
+          <p>A peer reviewed journal of the<br />College of Technology, University of San Agustin</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn-submit" href="authentication.html">Submit Manuscript
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+        </a>
+        <div class="search-wrap">
+          <label class="search-box">
+            <input type="text" id="siteSearchInput" placeholder="Search Article..." aria-label="Search Article" autocomplete="off" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          </label>
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="main-nav">
+    <div class="container">
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <ul class="nav-list">
+        <li><a href="index.html">HOME</a></li>
+        <li>
+          <a href="aims-and-scope.html">AIMS AND SCOPE</a>
+        </li>
+        <li>
+          <a href="author-guidelines.html">FOR AUTHORS</a>
+        </li>
+        <li><a href="current.html">CURRENT</a></li>
+        <li><a href="archives.html">ARCHIVES</a></li>
+        <li><a href="editorial-board.html">EDITORIAL BOARD</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main class="container">
+  <div class="archives-layout">
+    <div class="archives-intro">
+      <div class="page-header" style="padding-top:0;">
+        <h2>Archives</h2>
+      </div>
+      <p>Browse all issues of the journal of Technology, Engineering, Architecture, and Design</p>
+    </div>
+
+    <div class="archives-filters">
+      <label class="filter-input">
+        <input type="text" id="archiveSearchInput" placeholder="Search Archives.." style="border:none;outline:none;width:100%;font-size:0.9rem;" />
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+      </label>
+
+      <select class="filter-select" id="archiveYearSelect">
+        <option value="">All Years</option>
+      </select>
+
+      <div class="filter-row">
+        <select class="filter-select" id="archiveVolumeSelect">
+          <option value="">All volumes</option>
+        </select>
+        <button class="btn-filter" type="button" id="archiveFilterBtn">Filter</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="archivesList"></div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <h5>About JTEAD</h5>
+      <p>The official research journal of the College of Technology, University of San Agustin, dedicated to advancing knowledge in technology, engineering, architecture, and design</p>
+    </div>
+    <div>
+      <h5>Quick Links</h5>
+      <ul>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="current.html">Current issue</a></li>
+        <li><a href="archives.html">Archives</a></li>
+        <li><a href="authentication.html">Submit manuscript</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>For Authors</h5>
+      <ul>
+        <li><a href="author-guidelines.html">Author Guidelines</a></li>
+        <li><a href="author-guidelines.html#submission-process">Submission Process</a></li>
+        <li><a href="review-process.html">Review Process</a></li>
+        <li><a href="copyright-policy.html">Copyright Policy</a></li>
+      </ul>
+    </div>
+    <div id="footerContact">
+      <h5>Contact</h5>
+      <p>College of Technology<br />University of San Agustin<br />Iloilo City, Philippines<br />cea@usa.edu.ph</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; 2025 Journal of Technology, Engineering, Architecture and Design, All rights reserved</p>
+    <div class="legal-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-use.html">Terms of use</a>
+    </div>
+  </div>
+</footer>
+
+<script src="issues-data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
