@@ -1,31 +1,40 @@
 import os
 import sys
+import tempfile
 from io import BytesIO
 
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-# app.py requires SECRET_KEY to be set at import time (config.py raises if
-# it's missing). Set a throwaway value before importing so tests don't need
-# a real .env file.
+# config.py requires SECRET_KEY to be set at import time (it raises if it's
+# missing). Set a throwaway value before importing so tests don't need a
+# real .env file.
 os.environ.setdefault("SECRET_KEY", "test-secret-key-not-for-production")
 
-from app import app as flask_app  # noqa: E402
+# security_log.py's logger is a process-wide singleton configured at import
+# time, so it can't pick up per-test tmp_path overrides the way the app
+# factory can. Point it at a scratch directory for the whole test session
+# instead, so the real jtead-instance/security.log is never touched.
+os.environ.setdefault("SECURITY_LOG_DIR", tempfile.mkdtemp(prefix="jtead-test-logs-"))
+
+from app import create_app  # noqa: E402
+from config import TestConfig  # noqa: E402
 from models import db as _db  # noqa: E402
 
 
 @pytest.fixture()
-def app():
-    flask_app.config.update(
-        TESTING=True,
-        SQLALCHEMY_DATABASE_URI="sqlite:///:memory:",
-        WTF_CSRF_ENABLED=False,
-        RATELIMIT_ENABLED=False,
-    )
-    with flask_app.app_context():
-        _db.create_all()
-        yield flask_app
+def app(tmp_path):
+    class IsolatedTestConfig(TestConfig):
+        # Every real file this app touches (db, uploads) is redirected under
+        # pytest's tmp_path, so a test run can never contend with — or
+        # pollute — the real jtead-instance/ directory the dev server uses.
+        INSTANCE_DIR = tmp_path
+        UPLOAD_DIR = tmp_path / "uploads"
+
+    application = create_app(IsolatedTestConfig)
+    with application.app_context():
+        yield application
         _db.session.remove()
         _db.drop_all()
 

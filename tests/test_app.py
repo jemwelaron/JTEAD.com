@@ -186,8 +186,14 @@ def test_my_submissions_lists_own_submissions(client, valid_password, submission
 def test_submit_article_rate_limited(client, valid_password, app):
     # Rate-limiting is off by default in tests (see conftest.py) so the other
     # tests above aren't affected by shared state between them; turn it on
-    # just for this one to prove the limit itself actually works.
+    # just for this one to prove the limit itself actually works. Flask-
+    # Limiter reads RATELIMIT_ENABLED once, in init_app, so flipping the
+    # config alone after the app is already built has no effect — it has to
+    # be re-applied to pick up the new value.
+    from extensions import limiter
+
     app.config["RATELIMIT_ENABLED"] = True
+    limiter.init_app(app)
     signup(client, email="ratelimit@example.com", password=valid_password)
 
     # The limiter check runs before the view body, so an otherwise-invalid
@@ -195,6 +201,145 @@ def test_submit_article_rate_limited(client, valid_password, app):
     # multipart uploads.
     statuses = [client.post("/submit-article", data={}).status_code for _ in range(16)]
     assert 429 in statuses
+
+
+# ---------- Password reset ----------
+
+
+def test_forgot_password_unknown_email_still_returns_ok(client):
+    # Must not leak whether an email is registered.
+    resp = client.post("/api/forgot-password", json={"email": "nobody@example.com"})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_forgot_password_known_email_returns_ok(client, valid_password):
+    signup(client, email="resetme@example.com", password=valid_password)
+    resp = client.post("/api/forgot-password", json={"email": "resetme@example.com"})
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def _make_reset_token(app, email, password):
+    from app import PASSWORD_RESET_SALT
+    from itsdangerous import URLSafeTimedSerializer
+    from models import User
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"], salt=PASSWORD_RESET_SALT)
+        return serializer.dumps({"user_id": user.id, "pw": user.password_hash[-16:]})
+
+
+def test_reset_password_with_valid_token(client, app, valid_password):
+    signup(client, email="resetvalid@example.com", password=valid_password)
+    token = _make_reset_token(app, "resetvalid@example.com", valid_password)
+
+    resp = client.post("/api/reset-password", json={"token": token, "password": "BrandNewPass99"})
+    assert resp.status_code == 200
+
+    client.post("/api/logout")
+    login_resp = client.post(
+        "/api/login", json={"email": "resetvalid@example.com", "password": "BrandNewPass99"}
+    )
+    assert login_resp.status_code == 200
+
+
+def test_reset_password_with_garbage_token_rejected(client):
+    resp = client.post("/api/reset-password", json={"token": "not-a-real-token", "password": "BrandNewPass99"})
+    assert resp.status_code == 400
+
+
+def test_reset_password_token_single_use(client, app, valid_password):
+    signup(client, email="resetreuse@example.com", password=valid_password)
+    token = _make_reset_token(app, "resetreuse@example.com", valid_password)
+
+    first = client.post("/api/reset-password", json={"token": token, "password": "BrandNewPass99"})
+    assert first.status_code == 200
+
+    # Reusing the same token after the password already changed must fail —
+    # the token embeds a fragment of the old password hash, so it goes stale
+    # the moment the password it was issued for changes.
+    second = client.post("/api/reset-password", json={"token": token, "password": "AnotherPass88"})
+    assert second.status_code == 400
+
+
+def test_reset_password_weak_password_rejected(client, app, valid_password):
+    signup(client, email="resetweak@example.com", password=valid_password)
+    token = _make_reset_token(app, "resetweak@example.com", valid_password)
+
+    resp = client.post("/api/reset-password", json={"token": token, "password": "short1"})
+    assert resp.status_code == 400
+
+
+# ---------- Editor dashboard ----------
+
+
+def _promote_to_editor(email):
+    from models import User, db
+
+    user = User.query.filter_by(email=email).first()
+    user.is_editor = True
+    db.session.commit()
+
+
+def test_editor_submissions_requires_login(client):
+    resp = client.get("/api/editor/submissions")
+    assert resp.status_code == 401
+
+
+def test_editor_submissions_requires_editor_role(client, valid_password):
+    signup(client, email="notaneditor@example.com", password=valid_password)
+    resp = client.get("/api/editor/submissions")
+    assert resp.status_code == 403
+
+
+def test_editor_can_list_all_submissions(client, valid_password, submission_form_data, app):
+    # NOTE: promotion happens via the same ambient app-context session the
+    # `app`/`client` fixtures already hold open for the whole test, not a
+    # fresh `with app.app_context()`. A fresh context gets its own
+    # SQLAlchemy session/identity map — Flask-Login's already-cached User
+    # object in the fixture's session would never see a commit made through
+    # a different session, and the update would silently appear to work
+    # while the request-side `current_user.is_editor` stayed stale.
+    signup(client, email="author9@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author9@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    client.post("/api/logout")
+
+    signup(client, email="editor1@example.com", password=valid_password)
+    _promote_to_editor("editor1@example.com")
+
+    resp = client.get("/api/editor/submissions")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert len(data) == 1
+    assert data[0]["author_email"] == "author9@example.com"
+
+
+def test_editor_can_update_submission_status(client, valid_password, submission_form_data, app):
+    from models import Submission, db
+
+    signup(client, email="author10@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author10@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    client.post("/api/logout")
+
+    signup(client, email="editor2@example.com", password=valid_password)
+    _promote_to_editor("editor2@example.com")
+    submission_id = Submission.query.first().id
+
+    resp = client.post(f"/api/editor/submissions/{submission_id}/status", json={"status": "under-review"})
+    assert resp.status_code == 200
+    assert db.session.get(Submission, submission_id).status == "under-review"
+
+
+def test_editor_rejects_invalid_status(client, valid_password, app):
+    signup(client, email="editor3@example.com", password=valid_password)
+    _promote_to_editor("editor3@example.com")
+
+    resp = client.post("/api/editor/submissions/1/status", json={"status": "not-a-real-status"})
+    assert resp.status_code == 400
 
 
 # ---------- Security logging ----------

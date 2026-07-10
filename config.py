@@ -45,3 +45,14 @@ class Config:
     REMEMBER_COOKIE_HTTPONLY = True
     REMEMBER_COOKIE_SAMESITE = "Lax"
     REMEMBER_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
+
+
+class TestConfig(Config):
+    """Used only by the pytest suite. Everything lives in-memory / under a
+    pytest-managed tmp_path so tests never touch the real jtead-instance/
+    directory that the dev server and production use."""
+
+    TESTING = True
+    SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+    WTF_CSRF_ENABLED = False
+    RATELIMIT_ENABLED = False
