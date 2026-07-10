@@ -34,3 +34,14 @@ class Config:
     SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"
 
     WTF_CSRF_TIME_LIMIT = None  # tokens don't expire mid-form-fill
+
+    # Defaults to in-memory, which only works correctly with a single worker
+    # process — fine for local dev, silently broken (each worker counts limits
+    # separately) once deployed with more than one. Set RATELIMIT_STORAGE_URI
+    # to a real backend (e.g. redis://localhost:6379) before running with
+    # multiple workers.
+    RATELIMIT_STORAGE_URI = os.environ.get("RATELIMIT_STORAGE_URI", "memory://")
+
+    REMEMBER_COOKIE_HTTPONLY = True
+    REMEMBER_COOKIE_SAMESITE = "Lax"
+    REMEMBER_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0") == "1"

@@ -1,4 +1,5 @@
 import os
+import re
 import uuid
 from urllib.parse import quote
 
@@ -21,8 +22,13 @@ from flask_wtf.csrf import generate_csrf
 from werkzeug.security import check_password_hash, generate_password_hash
 from werkzeug.utils import secure_filename
 
+from sqlalchemy.exc import IntegrityError
+
 from config import Config
+from file_signatures import file_content_matches_extension
 from models import CoAuthor, Submission, User, db
+from password_rules import validate_password_strength
+from security_log import security_logger
 
 app = Flask(__name__, static_folder=".", static_url_path="")
 app.config.from_object(Config)
@@ -32,7 +38,11 @@ Config.UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 db.init_app(app)
 csrf = CSRFProtect(app)
-limiter = Limiter(get_remote_address, app=app, default_limits=[])
+limiter = Limiter(
+    get_remote_address, app=app, default_limits=[], storage_uri=app.config["RATELIMIT_STORAGE_URI"]
+)
+
+EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 login_manager = LoginManager(app)
 
@@ -49,6 +59,41 @@ def unauthorized():
 
 with app.app_context():
     db.create_all()
+
+
+# ---------- Security headers ----------
+
+# NOTE on script-src/style-src: several pages (notably "Submit portal.html",
+# which predates this backend work) rely on inline onclick handlers and
+# inline <script>/<style> blocks, so this CSP allows 'unsafe-inline' for
+# scripts and styles rather than breaking them. That specifically means this
+# CSP does NOT block the class of attribute-injection XSS fixed in
+# my-submissions.html — correct output escaping is what actually prevents
+# that, not this header. What this CSP does still buy: no script/style/frame/
+# object can load from a third-party domain, and the page can't be framed by
+# another site. Tightening further to a nonce-based policy would mean
+# reworking every inline handler site-wide — a separate, bigger project.
+@app.after_request
+def set_security_headers(response):
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "object-src 'none'; "
+        "base-uri 'self'; "
+        "frame-ancestors 'none'"
+    )
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    # Only meaningful (and only safe to promise) once this is actually served
+    # over HTTPS — sending it over plain HTTP would be a lie the browser
+    # can't act on yet, and enabling it prematurely can lock a domain into
+    # HTTPS before it's ready.
+    if request.is_secure:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+    return response
 
 
 # ---------- Static pages ----------
@@ -76,16 +121,31 @@ def signup():
 
     if not full_name or not email or not password:
         return jsonify({"error": "Full name, email, and password are all required."}), 400
-    if len(password) < 8:
-        return jsonify({"error": "Password must be at least 8 characters."}), 400
+
+    if not EMAIL_RE.match(email):
+        return jsonify({"error": "Please enter a valid email address."}), 400
+
+    password_error = validate_password_strength(password, email=email, full_name=full_name)
+    if password_error:
+        return jsonify({"error": password_error}), 400
+
     if User.query.filter_by(email=email).first():
         return jsonify({"error": "An account with that email already exists."}), 409
 
     user = User(full_name=full_name, email=email, password_hash=generate_password_hash(password))
     db.session.add(user)
-    db.session.commit()
+    try:
+        db.session.commit()
+    except IntegrityError:
+        # Someone else's signup for the same email landed between our check
+        # above and this commit. The database's unique constraint on email
+        # is the real guard here — the query above is just a fast, friendly
+        # first check that can't fully close that race on its own.
+        db.session.rollback()
+        return jsonify({"error": "An account with that email already exists."}), 409
 
     login_user(user)
+    security_logger.info(f"signup success email={email} ip={request.remote_addr}")
     return jsonify({"ok": True, "user": {"full_name": user.full_name, "email": user.email}})
 
 
@@ -95,12 +155,15 @@ def login():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
     password = data.get("password") or ""
+    remember = bool(data.get("remember"))
 
     user = User.query.filter_by(email=email).first()
     if not user or not check_password_hash(user.password_hash, password):
+        security_logger.warning(f"login failed email={email} ip={request.remote_addr}")
         return jsonify({"error": "Incorrect email or password."}), 401
 
-    login_user(user)
+    login_user(user, remember=remember)
+    security_logger.info(f"login success email={email} ip={request.remote_addr}")
     return jsonify({"ok": True, "user": {"full_name": user.full_name, "email": user.email}})
 
 
@@ -162,8 +225,18 @@ def submission_error(message):
     return redirect(f"/Submit%20portal.html?error={quote(message)}")
 
 
+def submission_rate_limit_key():
+    # Rate-limit by account, not IP — this route already requires login, and
+    # limiting by IP would unfairly throttle everyone behind the same NAT/
+    # campus network as one heavy user (or one abusive account).
+    if current_user.is_authenticated:
+        return f"user:{current_user.id}"
+    return get_remote_address()
+
+
 @app.route("/submit-article", methods=["POST"])
 @login_required
+@limiter.limit("15/hour", key_func=submission_rate_limit_key)
 def submit_article():
     form = request.form
     files = request.files
@@ -213,6 +286,10 @@ def submit_article():
         if not file_size_ok(file_storage, rules["max_bytes"]):
             return submission_error(f"{rules['label']}: file is too large.")
 
+        extension = file_storage.filename.rsplit(".", 1)[1]
+        if not file_content_matches_extension(file_storage, extension):
+            return submission_error(f"{rules['label']}: file content doesn't match its extension.")
+
         saved_paths[field_name] = file_storage
 
     submission_dir.mkdir(parents=True, exist_ok=True)
@@ -261,6 +338,10 @@ def submit_article():
             )
 
     db.session.commit()
+
+    security_logger.info(
+        f"submission created id={submission.id} user_id={current_user.id} ip={request.remote_addr}"
+    )
 
     return redirect("/Submit%20portal.html?submitted=1")
 

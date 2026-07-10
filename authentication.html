@@ -61,6 +61,30 @@
       margin-bottom: 20px;
     }
 
+    .field-hint {
+      font-size: 12px;
+      color: #777;
+      margin: 6px 0 0;
+      line-height: 1.4;
+    }
+
+    .remember-row {
+      margin-bottom: 16px;
+    }
+    label.remember-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 400;
+      font-size: 13px;
+      cursor: pointer;
+      margin-bottom: 0;
+    }
+    .remember-label input {
+      width: auto;
+      accent-color: var(--gold-accent);
+    }
+
     label {
       display: block;
       margin-bottom: 6px;
@@ -182,6 +206,9 @@
           <label for="login-password">Password</label>
           <input type="password" id="login-password" name="password" required placeholder="••••••••">
         </div>
+        <div class="form-group remember-row">
+          <label class="remember-label"><input type="checkbox" id="login-remember" name="remember"> Remember me on this device</label>
+        </div>
         <button type="submit" class="primary-action-btn">Sign In & Proceed</button>
       </form>
     </div>
@@ -212,7 +239,8 @@
         </div>
         <div class="form-group">
           <label for="signup-password">Password</label>
-          <input type="password" id="signup-password" name="password" required minlength="8" placeholder="Create secure password (min. 8 characters)">
+          <input type="password" id="signup-password" name="password" required minlength="10" placeholder="Create secure password">
+          <p class="field-hint">At least 10 characters, with a letter and a number. Avoid common passwords or your name/email.</p>
         </div>
         <button type="submit" class="primary-action-btn">Complete Registration</button>
       </form>
@@ -290,6 +318,7 @@
       await postJson('/api/login', {
         email: form.email.value,
         password: form.password.value,
+        remember: form.remember.checked,
       });
       window.location.href = 'my-submissions.html';
     } catch (err) {

@@ -130,6 +130,16 @@
     "revision-requested": "Revision Requested",
   };
 
+  // Submission titles/tracks are free text the author typed into the
+  // submission form — never trust them as HTML. Uses the browser's own
+  // serializer (via textContent) rather than a hand-rolled replace, so it's
+  // correct for every character, not just the common cases.
+  function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+  }
+
   (async function init() {
     const meRes = await fetch('/api/me');
     if (!meRes.ok) {
@@ -168,10 +178,10 @@
         return `
           <div class="article-row">
             <div>
-              <p class="article-row-title">${s.title}</p>
-              <p class="article-row-authors">${s.track} &middot; Submitted ${date}</p>
+              <p class="article-row-title">${escapeHtml(s.title)}</p>
+              <p class="article-row-authors">${escapeHtml(s.track)} &middot; Submitted ${date}</p>
             </div>
-            <span class="pdf-badge">${statusLabel}</span>
+            <span class="pdf-badge">${escapeHtml(statusLabel)}</span>
           </div>`;
       })
       .join('');
