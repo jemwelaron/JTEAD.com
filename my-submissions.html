@@ -78,6 +78,12 @@
   </div>
   <p class="page-intro">Signed in as <strong id="accountName">&hellip;</strong>. Track the status of manuscripts you've submitted to JTEAD below.</p>
 
+  <div id="verifyBanner" class="hidden" style="background:#fff8e6; border:1px solid #f0dca0; border-radius:6px; padding:14px 16px; margin-bottom:20px; font-size:14px;">
+    Please verify your email address before submitting a manuscript.
+    <a href="#" id="resendVerification">Resend verification email</a>
+    <span id="resendStatus" style="margin-left:8px; color:#1e6b34;"></span>
+  </div>
+
   <div id="submissionsList" style="margin-top: 28px;"></div>
 </main>
 
@@ -128,6 +134,7 @@
     accepted: "Accepted",
     rejected: "Rejected",
     "revision-requested": "Revision Requested",
+    withdrawn: "Withdrawn",
   };
 
   // Submission titles/tracks are free text the author typed into the
@@ -148,6 +155,23 @@
     }
     const me = await meRes.json();
     document.getElementById('accountName').textContent = me.full_name;
+
+    if (!me.email_verified) {
+      const banner = document.getElementById('verifyBanner');
+      banner.classList.remove('hidden');
+      document.getElementById('resendVerification').addEventListener('click', async (e) => {
+        e.preventDefault();
+        const statusEl = document.getElementById('resendStatus');
+        statusEl.textContent = 'Sending…';
+        const csrfRes = await fetch('/api/csrf-token');
+        const { csrf_token } = await csrfRes.json();
+        const res = await fetch('/api/resend-verification', {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrf_token },
+        });
+        statusEl.textContent = res.ok ? 'Sent — check your inbox.' : 'Could not send. Try again later.';
+      });
+    }
 
     const accountLink = document.getElementById('accountLink');
     accountLink.textContent = 'Log Out';
@@ -178,7 +202,7 @@
         return `
           <div class="article-row">
             <div>
-              <p class="article-row-title">${escapeHtml(s.title)}</p>
+              <p class="article-row-title"><a href="submission-detail.html?id=${s.id}">${escapeHtml(s.title)}</a></p>
               <p class="article-row-authors">${escapeHtml(s.track)} &middot; Submitted ${date}</p>
             </div>
             <span class="pdf-badge">${escapeHtml(statusLabel)}</span>

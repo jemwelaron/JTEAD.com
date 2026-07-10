@@ -98,6 +98,17 @@ proxy is actually in place).
   becomes a problem, that's the point to migrate to Postgres — the app
   already goes through SQLAlchemy, so the model code wouldn't need to
   change, just `SQLALCHEMY_DATABASE_URI`.
+- **No migration tool yet.** `create_app()` only calls `db.create_all()`,
+  which creates missing tables but never alters existing ones — adding a
+  column to `models.py` (as this project has already done twice, for
+  `is_editor` and `email_verified`) does nothing to a database that already
+  has the old schema, and every query against the new column then fails.
+  Harmless right now since there's no real user data yet — the dev fix is
+  just deleting `jtead-instance/jtead.db` and letting it rebuild. Once
+  there's real production data, that stops being an option: add
+  [Flask-Migrate](https://flask-migrate.readthedocs.io/) (Alembic) before
+  the next schema change, so it becomes an `ALTER TABLE` migration instead
+  of a choice between "broken" and "wipe the database."
 
 ## 5. Email
 

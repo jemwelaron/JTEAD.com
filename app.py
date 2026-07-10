@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from flask import Blueprint, Flask, current_app, jsonify, redirect, request
+from flask import Blueprint, Flask, current_app, jsonify, redirect, request, send_from_directory
 from flask_login import (
     current_user,
     login_required,
@@ -28,10 +28,13 @@ from mailer import send_email
 from models import CoAuthor, Submission, User, db
 from password_rules import validate_password_strength
 from security_log import security_logger
+from submission_files import FILE_FIELD_COLUMNS
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 PASSWORD_RESET_SALT = "password-reset"
 PASSWORD_RESET_MAX_AGE = 3600  # seconds
+EMAIL_VERIFY_SALT = "email-verify"
+EMAIL_VERIFY_MAX_AGE = 24 * 3600  # seconds
 
 main_bp = Blueprint("main", __name__)
 
@@ -48,6 +51,27 @@ def unauthorized():
 
 def _reset_serializer():
     return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=PASSWORD_RESET_SALT)
+
+
+def _email_verify_serializer():
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"], salt=EMAIL_VERIFY_SALT)
+
+
+def _send_verification_email(user):
+    token = _email_verify_serializer().dumps({"user_id": user.id})
+    verify_link = f"{request.host_url.rstrip('/')}/verify-email.html?token={token}"
+    try:
+        send_email(
+            to=user.email,
+            subject="Verify your JTEAD email address",
+            body=(
+                f"Welcome to JTEAD, {user.full_name}.\n\n"
+                f"Please verify your email address to enable manuscript submission: {verify_link}\n\n"
+                "This link expires in 24 hours."
+            ),
+        )
+    except Exception:
+        current_app.logger.exception(f"Failed to send verification email to {user.email}")
 
 
 def submission_rate_limit_key():
@@ -109,6 +133,7 @@ def signup():
 
     login_user(user)
     security_logger.info(f"signup success email={email} ip={request.remote_addr}")
+    _send_verification_email(user)
     return jsonify({"ok": True, "user": {"full_name": user.full_name, "email": user.email}})
 
 
@@ -145,8 +170,51 @@ def me():
             "full_name": current_user.full_name,
             "email": current_user.email,
             "is_editor": current_user.is_editor,
+            "email_verified": current_user.email_verified,
         }
     )
+
+
+# ---------- Email verification ----------
+#
+# Verification isn't required to sign in or browse — only to submit a
+# manuscript (see the check in submit_article below). That keeps a slow or
+# undelivered email from locking someone out of their own account entirely.
+
+
+@main_bp.route("/api/verify-email", methods=["POST"])
+@limiter.limit("20/hour")
+def verify_email():
+    data = request.get_json(silent=True) or {}
+    token = data.get("token") or ""
+
+    try:
+        payload = _email_verify_serializer().loads(token, max_age=EMAIL_VERIFY_MAX_AGE)
+    except SignatureExpired:
+        return jsonify({"error": "This verification link has expired. Request a new one from My Submissions."}), 400
+    except BadSignature:
+        return jsonify({"error": "This verification link is invalid."}), 400
+
+    user = db.session.get(User, payload.get("user_id"))
+    if not user:
+        return jsonify({"error": "This verification link is invalid."}), 400
+
+    if not user.email_verified:
+        user.email_verified = True
+        db.session.commit()
+        security_logger.info(f"email verified email={user.email} ip={request.remote_addr}")
+
+    return jsonify({"ok": True})
+
+
+@main_bp.route("/api/resend-verification", methods=["POST"])
+@login_required
+@limiter.limit("5/hour")
+def resend_verification():
+    if current_user.email_verified:
+        return jsonify({"ok": True, "already_verified": True})
+    _send_verification_email(current_user)
+    return jsonify({"ok": True})
 
 
 # ---------- Password reset ----------
@@ -269,6 +337,9 @@ def submission_error(message):
 @login_required
 @limiter.limit("15/hour", key_func=submission_rate_limit_key)
 def submit_article():
+    if not current_user.email_verified:
+        return submission_error("Please verify your email address before submitting a manuscript.")
+
     form = request.form
     files = request.files
 
@@ -374,6 +445,19 @@ def submit_article():
         f"submission created id={submission.id} user_id={current_user.id} ip={request.remote_addr}"
     )
 
+    try:
+        send_email(
+            to=submission.corresponding_email,
+            subject="JTEAD manuscript received",
+            body=(
+                f'We\'ve received your manuscript submission, "{submission.title}".\n\n'
+                "You can track its review status anytime from My Submissions on the JTEAD site.\n\n"
+                "Thank you for submitting to JTEAD."
+            ),
+        )
+    except Exception:
+        current_app.logger.exception(f"Failed to send submission confirmation email for submission id={submission.id}")
+
     return redirect("/Submit%20portal.html?submitted=1")
 
 
@@ -397,6 +481,78 @@ def my_submissions():
             for s in submissions
         ]
     )
+
+
+# A submission can be pulled back by its author as long as it hasn't already
+# reached a final editorial decision — once accepted/rejected (or already
+# withdrawn), withdrawing no longer makes sense.
+WITHDRAWABLE_STATUSES = {"submitted", "under-review", "revision-requested"}
+
+
+@main_bp.route("/api/my-submissions/<int:submission_id>")
+@login_required
+def my_submission_detail(submission_id):
+    submission = Submission.query.filter_by(id=submission_id, user_id=current_user.id).first()
+    if not submission:
+        return jsonify({"error": "Submission not found."}), 404
+
+    return jsonify(
+        {
+            "id": submission.id,
+            "title": submission.title,
+            "track": submission.track,
+            "keywords": submission.keywords,
+            "abstract": submission.abstract,
+            "status": submission.status,
+            "created_at": submission.created_at.isoformat(),
+            "corresponding_name": submission.corresponding_name,
+            "corresponding_email": submission.corresponding_email,
+            "corresponding_phone": submission.corresponding_phone,
+            "corresponding_org": submission.corresponding_org,
+            "corresponding_city": submission.corresponding_city,
+            "corresponding_country": submission.corresponding_country,
+            "coi_status": submission.coi_status,
+            "coi_details": submission.coi_details,
+            "has_supplementary": bool(submission.supplementary_path),
+            "co_authors": [
+                {"name": c.name, "email": c.email, "org": c.org} for c in submission.co_authors
+            ],
+            "can_withdraw": submission.status in WITHDRAWABLE_STATUSES,
+        }
+    )
+
+
+@main_bp.route("/api/my-submissions/<int:submission_id>/files/<field>")
+@login_required
+def my_submission_file(submission_id, field):
+    if field not in FILE_FIELD_COLUMNS:
+        return jsonify({"error": "Unknown file field."}), 400
+
+    submission = Submission.query.filter_by(id=submission_id, user_id=current_user.id).first()
+    if not submission:
+        return jsonify({"error": "Submission not found."}), 404
+
+    relative_path = getattr(submission, FILE_FIELD_COLUMNS[field])
+    if not relative_path:
+        return jsonify({"error": "No file uploaded for this field."}), 404
+
+    return send_from_directory(current_app.config["UPLOAD_DIR"], relative_path, as_attachment=True)
+
+
+@main_bp.route("/api/my-submissions/<int:submission_id>/withdraw", methods=["POST"])
+@login_required
+def withdraw_submission(submission_id):
+    submission = Submission.query.filter_by(id=submission_id, user_id=current_user.id).first()
+    if not submission:
+        return jsonify({"error": "Submission not found."}), 404
+
+    if submission.status not in WITHDRAWABLE_STATUSES:
+        return jsonify({"error": "This submission can no longer be withdrawn."}), 400
+
+    submission.status = "withdrawn"
+    db.session.commit()
+    security_logger.info(f"submission withdrawn id={submission_id} user_id={current_user.id}")
+    return jsonify({"ok": True})
 
 
 # ---------- Security headers ----------

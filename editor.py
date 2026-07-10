@@ -3,22 +3,23 @@ from functools import wraps
 from flask import Blueprint, current_app, jsonify, request, send_from_directory
 from flask_login import current_user, login_required
 
+from mailer import send_email
 from models import Submission, db
 from security_log import security_logger
+from submission_files import FILE_FIELD_COLUMNS
 
 editor_bp = Blueprint("editor", __name__, url_prefix="/api/editor")
 
 # Matches the STATUS_LABELS map in my-submissions.html / editor-dashboard.html.
 VALID_STATUSES = {"submitted", "under-review", "revision-requested", "accepted", "rejected"}
 
-# Maps the download URL's <field> segment to the Submission column that
-# holds its path — keeps the route from taking an arbitrary path directly
-# from the request; only these four known relationships are ever served.
-FILE_FIELD_COLUMNS = {
-    "manuscript": "manuscript_path",
-    "graphical_abstract": "graphical_abstract_path",
-    "cover_letter": "cover_letter_path",
-    "supplementary": "supplementary_path",
+STATUS_LABELS = {
+    "submitted": "Submitted",
+    "under-review": "Under Review",
+    "revision-requested": "Revision Requested",
+    "accepted": "Accepted",
+    "rejected": "Rejected",
+    "withdrawn": "Withdrawn",
 }
 
 
@@ -96,4 +97,18 @@ def update_status(submission_id):
     security_logger.info(
         f"submission status changed id={submission_id} status={new_status} by_user_id={current_user.id}"
     )
+
+    try:
+        send_email(
+            to=submission.corresponding_email,
+            subject=f"Update on your JTEAD submission: {STATUS_LABELS.get(new_status, new_status)}",
+            body=(
+                f'The status of your manuscript "{submission.title}" has been updated to: '
+                f"{STATUS_LABELS.get(new_status, new_status)}.\n\n"
+                "You can view details anytime from My Submissions on the JTEAD site."
+            ),
+        )
+    except Exception:
+        current_app.logger.exception(f"Failed to send status-change email for submission id={submission_id}")
+
     return jsonify({"ok": True})

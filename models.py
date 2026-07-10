@@ -16,6 +16,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(255), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     is_editor = db.Column(db.Boolean, nullable=False, default=False)
+    email_verified = db.Column(db.Boolean, nullable=False, default=False)
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
 
     submissions = db.relationship("Submission", backref="author", lazy=True)

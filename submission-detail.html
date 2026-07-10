@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Submission Details — JTEAD</title>
+<link rel="icon" type="image/png" href="COT LOGO.png" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 32px; margin-top: 20px; }
+  .detail-field { font-size: 14px; }
+  .detail-field h4 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
+  .detail-field p { margin: 0; }
+  .detail-full { grid-column: 1 / -1; }
+  .file-list a { display: inline-block; margin-right: 16px; }
+  .withdraw-btn { background: #b3261e; color: #fff; border: none; padding: 10px 18px; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 14px; margin-top: 24px; }
+  .withdraw-btn:hover { background: #8f1e17; }
+  .withdraw-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+  .withdraw-status { margin-left: 10px; font-size: 13px; }
+  .not-found { margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="container">
+      <a href="https://usa.edu.ph" target="_blank" rel="noopener">University of San Agustin</a>
+      <a href="#" id="accountLink">My Account</a>
+      <a href="#footerContact">Contact Us</a>
+    </div>
+  </div>
+
+  <div class="site-header">
+    <div class="container">
+      <div class="brand">
+        <img src="COT LOGO.png" class="logo" alt="JTEAD Logo">
+        <div class="brand-text">
+          <h1>JOURNAL OF TECHNOLOGY, ENGINEERING,<br />ARCHITECTURE AND DESIGN</h1>
+          <p>A peer reviewed journal of the<br />College of Technology, University of San Agustin</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn-submit" href="Submit%20portal.html">Submit Manuscript
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+        </a>
+        <div class="search-wrap">
+          <label class="search-box">
+            <input type="text" id="siteSearchInput" placeholder="Search Article..." aria-label="Search Article" autocomplete="off" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          </label>
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="main-nav">
+    <div class="container">
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <ul class="nav-list">
+        <li><a href="index.html">HOME</a></li>
+        <li><a href="aims-and-scope.html">AIMS AND SCOPE</a></li>
+        <li><a href="author-guidelines.html">FOR AUTHORS</a></li>
+        <li><a href="current.html">CURRENT</a></li>
+        <li><a href="archives.html">ARCHIVES</a></li>
+        <li><a href="editorial-board.html">EDITORIAL BOARD</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main class="container copyright-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="index.html">Home</a>
+    <span class="sep">&rsaquo;</span>
+    <a href="my-submissions.html">My Submissions</a>
+    <span class="sep">&rsaquo;</span>
+    <span class="current current-gold">Submission Details</span>
+  </nav>
+
+  <div class="announce-header" style="align-items:flex-start; margin-bottom: 10px;">
+    <div>
+      <h2 class="page-title" id="pageTitle">&hellip;</h2>
+      <div class="title-underline"></div>
+    </div>
+  </div>
+
+  <div id="notFound" class="not-found hidden">
+    <p>That submission couldn't be found, or doesn't belong to your account.</p>
+    <a href="my-submissions.html">Back to My Submissions</a>
+  </div>
+
+  <div id="detailWrap" class="hidden">
+    <div class="detail-grid">
+      <div class="detail-field"><h4>Status</h4><p id="fStatus"></p></div>
+      <div class="detail-field"><h4>Track</h4><p id="fTrack"></p></div>
+      <div class="detail-field"><h4>Submitted</h4><p id="fDate"></p></div>
+      <div class="detail-field"><h4>Keywords</h4><p id="fKeywords"></p></div>
+
+      <div class="detail-field detail-full"><h4>Abstract</h4><p id="fAbstract"></p></div>
+
+      <div class="detail-field"><h4>Corresponding Author</h4><p id="fCorrespondingName"></p></div>
+      <div class="detail-field"><h4>Contact</h4><p id="fCorrespondingContact"></p></div>
+      <div class="detail-field"><h4>Affiliation</h4><p id="fCorrespondingOrg"></p></div>
+      <div class="detail-field"><h4>Location</h4><p id="fCorrespondingLocation"></p></div>
+
+      <div class="detail-field detail-full"><h4>Conflict of Interest</h4><p id="fCoi"></p></div>
+
+      <div class="detail-field detail-full" id="coAuthorsField">
+        <h4>Co-Authors</h4>
+        <p id="fCoAuthors"></p>
+      </div>
+
+      <div class="detail-field detail-full">
+        <h4>Files</h4>
+        <p class="file-list" id="fFiles"></p>
+      </div>
+    </div>
+
+    <button class="withdraw-btn" id="withdrawBtn">Withdraw Submission</button>
+    <span class="withdraw-status" id="withdrawStatus"></span>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <h5>About JTEAD</h5>
+      <p>The official research journal of the College of Technology, University of San Agustin, dedicated to advancing knowledge in technology, engineering, architecture, and design</p>
+    </div>
+    <div>
+      <h5>Quick Links</h5>
+      <ul>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="current.html">Current issue</a></li>
+        <li><a href="archives.html">Archives</a></li>
+        <li><a href="Submit%20portal.html">Submit manuscript</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>For Authors</h5>
+      <ul>
+        <li><a href="author-guidelines.html">Author Guidelines</a></li>
+        <li><a href="author-guidelines.html#submission-process">Submission Process</a></li>
+        <li><a href="review-process.html">Review Process</a></li>
+        <li><a href="copyright-policy.html">Copyright Policy</a></li>
+      </ul>
+    </div>
+    <div id="footerContact">
+      <h5>Contact</h5>
+      <p>College of Technology<br />University of San Agustin<br />Iloilo City, Philippines<br />cea@usa.edu.ph</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; 2025 Journal of Technology, Engineering, Architecture and Design, All rights reserved</p>
+    <div class="legal-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-use.html">Terms of use</a>
+    </div>
+  </div>
+</footer>
+
+<script src="issues-data.js"></script>
+<script src="script.js"></script>
+<script>
+  const STATUS_LABELS = {
+    submitted: "Submitted",
+    "under-review": "Under Review",
+    accepted: "Accepted",
+    rejected: "Rejected",
+    "revision-requested": "Revision Requested",
+    withdrawn: "Withdrawn",
+  };
+
+  function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+  }
+
+  async function getCsrfToken() {
+    const res = await fetch('/api/csrf-token');
+    const data = await res.json();
+    return data.csrf_token;
+  }
+
+  (async function init() {
+    const meRes = await fetch('/api/me');
+    if (!meRes.ok) {
+      window.location.href = 'authentication.html';
+      return;
+    }
+
+    const id = new URLSearchParams(window.location.search).get('id');
+    const res = await fetch(`/api/my-submissions/${encodeURIComponent(id)}`);
+    if (!res.ok) {
+      document.getElementById('pageTitle').textContent = 'Submission Details';
+      document.getElementById('notFound').classList.remove('hidden');
+      return;
+    }
+    const s = await res.json();
+
+    document.getElementById('pageTitle').textContent = s.title;
+    document.title = `${s.title} — JTEAD`;
+    document.getElementById('detailWrap').classList.remove('hidden');
+
+    document.getElementById('fStatus').textContent = STATUS_LABELS[s.status] || s.status;
+    document.getElementById('fTrack').textContent = s.track;
+    document.getElementById('fDate').textContent = new Date(s.created_at).toLocaleDateString(undefined, {
+      year: 'numeric', month: 'long', day: 'numeric',
+    });
+    document.getElementById('fKeywords').textContent = s.keywords;
+    document.getElementById('fAbstract').textContent = s.abstract;
+    document.getElementById('fCorrespondingName').textContent = s.corresponding_name;
+    document.getElementById('fCorrespondingContact').textContent = `${s.corresponding_email} · ${s.corresponding_phone}`;
+    document.getElementById('fCorrespondingOrg').textContent = s.corresponding_org;
+    document.getElementById('fCorrespondingLocation').textContent = `${s.corresponding_city}, ${s.corresponding_country}`;
+    document.getElementById('fCoi').textContent = s.coi_status === 'yes'
+      ? (s.coi_details || 'Disclosed, no details provided.')
+      : 'None declared.';
+
+    const coAuthorsField = document.getElementById('coAuthorsField');
+    if (s.co_authors.length) {
+      document.getElementById('fCoAuthors').textContent = s.co_authors
+        .map((c) => `${c.name} (${c.email}, ${c.org})`)
+        .join('; ');
+    } else {
+      coAuthorsField.classList.add('hidden');
+    }
+
+    const fileFields = [
+      ['manuscript', 'Manuscript'],
+      ['graphical_abstract', 'Graphical Abstract'],
+      ['cover_letter', 'Cover Letter'],
+      ...(s.has_supplementary ? [['supplementary', 'Supplementary']] : []),
+    ];
+    document.getElementById('fFiles').innerHTML = fileFields
+      .map(([field, label]) => `<a href="/api/my-submissions/${s.id}/files/${field}">${escapeHtml(label)}</a>`)
+      .join('');
+
+    const withdrawBtn = document.getElementById('withdrawBtn');
+    if (!s.can_withdraw) {
+      withdrawBtn.remove();
+    } else {
+      withdrawBtn.addEventListener('click', async () => {
+        if (!window.confirm('Withdraw this submission? This cannot be undone.')) return;
+        withdrawBtn.disabled = true;
+        const statusEl = document.getElementById('withdrawStatus');
+        statusEl.textContent = 'Withdrawing…';
+        try {
+          const csrfToken = await getCsrfToken();
+          const wres = await fetch(`/api/my-submissions/${s.id}/withdraw`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken },
+          });
+          const data = await wres.json().catch(() => ({}));
+          if (!wres.ok) throw new Error(data.error || 'Could not withdraw this submission.');
+          document.getElementById('fStatus').textContent = STATUS_LABELS.withdrawn;
+          statusEl.textContent = 'Withdrawn.';
+          withdrawBtn.remove();
+        } catch (err) {
+          statusEl.textContent = err.message;
+          withdrawBtn.disabled = false;
+        }
+      });
+    }
+
+    const accountLink = document.getElementById('accountLink');
+    accountLink.textContent = 'Log Out';
+    accountLink.href = '#';
+    accountLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const csrfToken = await getCsrfToken();
+      await fetch('/api/logout', { method: 'POST', headers: { 'X-CSRFToken': csrfToken } });
+      window.location.href = 'index.html';
+    });
+  })();
+</script>
+</body>
+</html>

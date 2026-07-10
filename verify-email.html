@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal Gateway | Verify Email</title>
+  <style>
+    :root {
+      --primary-blue: #002147;
+      --gold-accent: #aa844c;
+      --text-dark: #333333;
+      --bg-light: #f8f9fa;
+      --border-color: #e2e8f0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background-color: var(--bg-light);
+      color: var(--text-dark);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+    }
+
+    .auth-container {
+      background: #ffffff;
+      width: 100%;
+      max-width: 420px;
+      padding: 40px;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+      border: 1px solid var(--border-color);
+      box-sizing: border-box;
+      text-align: center;
+    }
+
+    h2 { margin-top: 0; color: var(--primary-blue); font-size: 24px; }
+    p.lead { font-size: 14px; color: #555; line-height: 1.5; }
+
+    .hidden { display: none !important; }
+
+    .form-error {
+      background: #fdecea;
+      color: #b3261e;
+      border: 1px solid #f5c6c2;
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin: 0 0 16px;
+    }
+
+    .form-success {
+      background: #eaf6ec;
+      color: #1e6b34;
+      border: 1px solid #c2e5c8;
+      border-radius: 4px;
+      padding: 10px 12px;
+      font-size: 13px;
+      margin: 0 0 16px;
+    }
+
+    .back-link { display: block; margin-top: 18px; font-size: 13px; }
+  </style>
+</head>
+<body>
+
+<div class="auth-container">
+  <div id="checking-pane">
+    <h2>Verifying your email&hellip;</h2>
+    <p class="lead">One moment.</p>
+  </div>
+
+  <div id="success-pane" class="hidden">
+    <h2>Email Verified</h2>
+    <p class="form-success">Your email address has been verified. You can now submit manuscripts.</p>
+    <a class="back-link" href="my-submissions.html">Go to My Submissions</a>
+  </div>
+
+  <div id="error-pane" class="hidden">
+    <h2>Verification Failed</h2>
+    <p class="form-error" id="error-message"></p>
+    <a class="back-link" href="my-submissions.html">Go to My Submissions</a>
+  </div>
+</div>
+
+<script>
+  async function getCsrfToken() {
+    const res = await fetch('/api/csrf-token');
+    const data = await res.json();
+    return data.csrf_token;
+  }
+
+  (async function verify() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+
+    const checkingPane = document.getElementById('checking-pane');
+    const successPane = document.getElementById('success-pane');
+    const errorPane = document.getElementById('error-pane');
+
+    if (!token) {
+      checkingPane.classList.add('hidden');
+      document.getElementById('error-message').textContent = 'This verification link is missing its token.';
+      errorPane.classList.remove('hidden');
+      return;
+    }
+
+    try {
+      const csrfToken = await getCsrfToken();
+      const res = await fetch('/api/verify-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+        body: JSON.stringify({ token }),
+      });
+      const data = await res.json().catch(() => ({}));
+      checkingPane.classList.add('hidden');
+      if (!res.ok) {
+        document.getElementById('error-message').textContent = data.error || 'Something went wrong. Please try again.';
+        errorPane.classList.remove('hidden');
+        return;
+      }
+      successPane.classList.remove('hidden');
+    } catch (err) {
+      checkingPane.classList.add('hidden');
+      document.getElementById('error-message').textContent = 'Something went wrong. Please try again.';
+      errorPane.classList.remove('hidden');
+    }
+  })();
+</script>
+
+</body>
+</html>

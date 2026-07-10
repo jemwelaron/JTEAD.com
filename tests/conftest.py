@@ -87,6 +87,19 @@ def submission_form_data(sample_files):
 
 
 def signup(client, email="submitter@example.com", password="GoodPassword123", full_name="Test Author"):
-    return client.post(
+    resp = client.post(
         "/api/signup", json={"full_name": full_name, "email": email, "password": password}
     )
+    # Most tests aren't exercising the verify-email flow itself, and manuscript
+    # submission is gated on a verified email — auto-verify here so existing
+    # submission-focused tests don't all need to route through it. The
+    # dedicated verification tests bypass this helper (or reset the flag)
+    # to exercise the gate directly.
+    if resp.status_code == 200:
+        from models import User, db
+
+        user = User.query.filter_by(email=email.strip().lower()).first()
+        if user:
+            user.email_verified = True
+            db.session.commit()
+    return resp

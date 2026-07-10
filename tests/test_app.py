@@ -102,11 +102,49 @@ def test_submit_article_requires_login(client, submission_form_data):
     assert resp.status_code == 401
 
 
+def test_submit_article_requires_verified_email(client, valid_password, submission_form_data):
+    from urllib.parse import unquote
+
+    from models import User, db
+
+    signup(client, email="unverified@example.com", password=valid_password)
+    # signup()'s auto-verify is a test convenience for every other test —
+    # undo it here to exercise the actual gate in submit_article.
+    user = User.query.filter_by(email="unverified@example.com").first()
+    user.email_verified = False
+    db.session.commit()
+
+    resp = client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    assert resp.status_code == 302
+    assert "verify your email" in unquote(resp.headers["Location"])
+
+
 def test_submit_article_success(client, valid_password, submission_form_data):
     signup(client, email="submitter@example.com", password=valid_password)
     resp = client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
     assert resp.status_code == 302
     assert "submitted=1" in resp.headers["Location"]
+
+
+def test_submit_article_sends_confirmation_email(client, valid_password, submission_form_data, monkeypatch):
+    import app as app_module
+
+    sent = {}
+
+    def fake_send_email(to, subject, body):
+        sent["to"] = to
+        sent["subject"] = subject
+        sent["body"] = body
+
+    monkeypatch.setattr(app_module, "send_email", fake_send_email)
+
+    signup(client, email="emailconfirm@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "emailconfirm@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    assert sent["to"] == "emailconfirm@example.com"
+    assert "received" in sent["subject"].lower()
+    assert "A Test Manuscript" in sent["body"]
 
 
 def test_submit_article_creates_submission_record(client, valid_password, submission_form_data):
@@ -178,6 +216,98 @@ def test_my_submissions_lists_own_submissions(client, valid_password, submission
     assert len(data) == 1
     assert data[0]["title"] == "A Test Manuscript"
     assert data[0]["status"] == "submitted"
+
+
+# ---------- Submission detail, file download, withdrawal ----------
+
+
+def test_submission_detail_requires_ownership(client, valid_password, submission_form_data):
+    from models import Submission
+
+    signup(client, email="owner1@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "owner1@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    submission_id = Submission.query.first().id
+    client.post("/api/logout")
+
+    signup(client, email="notowner1@example.com", password=valid_password)
+    resp = client.get(f"/api/my-submissions/{submission_id}")
+    assert resp.status_code == 404
+
+
+def test_submission_detail_returns_full_fields(client, valid_password, submission_form_data):
+    signup(client, email="owner2@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "owner2@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    resp = client.get("/api/my-submissions/1")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data["title"] == "A Test Manuscript"
+    assert data["abstract"] == "This is a test abstract."
+    assert data["can_withdraw"] is True
+    assert data["co_authors"] == []
+
+
+def test_submission_file_download_owner_only(client, valid_password, submission_form_data):
+    from models import Submission
+
+    signup(client, email="owner3@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "owner3@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    submission_id = Submission.query.first().id
+    client.post("/api/logout")
+
+    signup(client, email="notowner3@example.com", password=valid_password)
+    resp = client.get(f"/api/my-submissions/{submission_id}/files/manuscript")
+    assert resp.status_code == 404
+
+
+def test_submission_file_download_success(client, valid_password, submission_form_data):
+    signup(client, email="owner4@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "owner4@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    resp = client.get("/api/my-submissions/1/files/manuscript")
+    assert resp.status_code == 200
+    assert resp.data.startswith(b"PK\x03\x04")
+
+
+def test_withdraw_submission_success(client, valid_password, submission_form_data):
+    signup(client, email="owner5@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "owner5@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    resp = client.post("/api/my-submissions/1/withdraw")
+    assert resp.status_code == 200
+
+    detail = client.get("/api/my-submissions/1").get_json()
+    assert detail["status"] == "withdrawn"
+    assert detail["can_withdraw"] is False
+
+
+def test_withdraw_submission_not_owner(client, valid_password, submission_form_data):
+    from models import Submission
+
+    signup(client, email="owner6@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "owner6@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    submission_id = Submission.query.first().id
+    client.post("/api/logout")
+
+    signup(client, email="notowner6@example.com", password=valid_password)
+    resp = client.post(f"/api/my-submissions/{submission_id}/withdraw")
+    assert resp.status_code == 404
+
+
+def test_withdraw_submission_already_withdrawn_rejected(client, valid_password, submission_form_data):
+    signup(client, email="owner7@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "owner7@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    client.post("/api/my-submissions/1/withdraw")
+    resp = client.post("/api/my-submissions/1/withdraw")
+    assert resp.status_code == 400
 
 
 # ---------- Rate limiting ----------
@@ -291,6 +421,103 @@ def test_reset_password_weak_password_rejected(client, app, valid_password):
     assert resp.status_code == 400
 
 
+# ---------- Email verification ----------
+
+
+def test_signup_sends_verification_email(client, valid_password, monkeypatch):
+    import app as app_module
+
+    sent = {}
+
+    def fake_send_email(to, subject, body):
+        sent["to"] = to
+        sent["subject"] = subject
+        sent["body"] = body
+
+    monkeypatch.setattr(app_module, "send_email", fake_send_email)
+
+    resp = client.post(
+        "/api/signup",
+        json={"full_name": "Verify Me", "email": "verifyflow@example.com", "password": valid_password},
+    )
+    assert resp.status_code == 200
+    assert sent["to"] == "verifyflow@example.com"
+    assert "verify" in sent["subject"].lower()
+
+
+def test_new_signup_is_unverified_until_confirmed(client, valid_password):
+    # Bypasses the signup() test helper's auto-verify convenience on purpose,
+    # to check the real default a fresh account starts with.
+    client.post(
+        "/api/signup",
+        json={"full_name": "Real Default", "email": "realdefault@example.com", "password": valid_password},
+    )
+    resp = client.get("/api/me")
+    assert resp.get_json()["email_verified"] is False
+
+
+def _make_verify_token(app, email):
+    from app import EMAIL_VERIFY_SALT
+    from itsdangerous import URLSafeTimedSerializer
+    from models import User
+
+    with app.app_context():
+        user = User.query.filter_by(email=email).first()
+        serializer = URLSafeTimedSerializer(app.config["SECRET_KEY"], salt=EMAIL_VERIFY_SALT)
+        return serializer.dumps({"user_id": user.id})
+
+
+def test_verify_email_with_valid_token(client, app, valid_password):
+    client.post(
+        "/api/signup",
+        json={"full_name": "Verify Valid", "email": "verifyvalid@example.com", "password": valid_password},
+    )
+    token = _make_verify_token(app, "verifyvalid@example.com")
+
+    resp = client.post("/api/verify-email", json={"token": token})
+    assert resp.status_code == 200
+
+    me = client.get("/api/me").get_json()
+    assert me["email_verified"] is True
+
+
+def test_verify_email_with_garbage_token_rejected(client):
+    resp = client.post("/api/verify-email", json={"token": "not-a-real-token"})
+    assert resp.status_code == 400
+
+
+def test_resend_verification_requires_login(client):
+    resp = client.post("/api/resend-verification")
+    assert resp.status_code == 401
+
+
+def test_resend_verification_sends_email_when_unverified(client, valid_password, monkeypatch):
+    import app as app_module
+
+    client.post(
+        "/api/signup",
+        json={"full_name": "Resend Me", "email": "resendme@example.com", "password": valid_password},
+    )
+
+    sent = {}
+    monkeypatch.setattr(
+        app_module, "send_email", lambda to, subject, body: sent.update(to=to, subject=subject)
+    )
+
+    resp = client.post("/api/resend-verification")
+    assert resp.status_code == 200
+    assert sent["to"] == "resendme@example.com"
+
+
+def test_resend_verification_noop_when_already_verified(client, valid_password):
+    # signup() helper auto-verifies, so this account is already verified.
+    signup(client, email="alreadyverified@example.com", password=valid_password)
+
+    resp = client.post("/api/resend-verification")
+    assert resp.status_code == 200
+    assert resp.get_json()["already_verified"] is True
+
+
 # ---------- Editor dashboard ----------
 
 
@@ -351,6 +578,36 @@ def test_editor_can_update_submission_status(client, valid_password, submission_
     resp = client.post(f"/api/editor/submissions/{submission_id}/status", json={"status": "under-review"})
     assert resp.status_code == 200
     assert db.session.get(Submission, submission_id).status == "under-review"
+
+
+def test_editor_status_change_sends_email(client, valid_password, submission_form_data, monkeypatch):
+    from models import Submission
+
+    import editor as editor_module
+
+    sent = {}
+
+    def fake_send_email(to, subject, body):
+        sent["to"] = to
+        sent["subject"] = subject
+        sent["body"] = body
+
+    monkeypatch.setattr(editor_module, "send_email", fake_send_email)
+
+    signup(client, email="author14@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "author14@example.com"
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    client.post("/api/logout")
+
+    signup(client, email="editor7@example.com", password=valid_password)
+    _promote_to_editor("editor7@example.com")
+    submission_id = Submission.query.first().id
+
+    client.post(f"/api/editor/submissions/{submission_id}/status", json={"status": "accepted"})
+
+    assert sent["to"] == "author14@example.com"
+    assert "Accepted" in sent["subject"]
+    assert "A Test Manuscript" in sent["body"]
 
 
 def test_editor_rejects_invalid_status(client, valid_password, app):

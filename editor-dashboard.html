@@ -150,7 +150,13 @@
     accepted: "Accepted",
     rejected: "Rejected",
     "revision-requested": "Revision Requested",
+    withdrawn: "Withdrawn",
   };
+
+  // "withdrawn" is author-initiated only (see /api/my-submissions/<id>/withdraw)
+  // — the editor status-update endpoint doesn't accept it, so it's left out
+  // of the editable dropdown's own options entirely.
+  const EDITABLE_STATUSES = ["submitted", "under-review", "revision-requested", "accepted", "rejected"];
 
   function escapeHtml(value) {
     const div = document.createElement('div');
@@ -233,12 +239,6 @@
         const date = new Date(s.created_at).toLocaleDateString(undefined, {
           year: 'numeric', month: 'long', day: 'numeric',
         });
-        const options = Object.entries(STATUS_LABELS)
-          .map(([value, label]) => {
-            const selected = value === s.status ? ' selected' : '';
-            return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(label)}</option>`;
-          })
-          .join('');
         const fileLinks = [
           ['manuscript', 'Manuscript'],
           ['graphical_abstract', 'Graphical Abstract'],
@@ -248,6 +248,19 @@
           .map(([field, label]) => `<a href="/api/editor/submissions/${s.id}/files/${field}">${escapeHtml(label)}</a>`)
           .join('<br>');
 
+        let statusCell;
+        if (s.status === 'withdrawn') {
+          statusCell = `<span class="pdf-badge">${escapeHtml(STATUS_LABELS.withdrawn)}</span>`;
+        } else {
+          const options = EDITABLE_STATUSES
+            .map((value) => {
+              const selected = value === s.status ? ' selected' : '';
+              return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(STATUS_LABELS[value])}</option>`;
+            })
+            .join('');
+          statusCell = `<select data-submission-id="${s.id}">${options}</select><span class="save-status"></span>`;
+        }
+
         return `
           <tr>
             <td>${escapeHtml(s.title)}</td>
@@ -255,10 +268,7 @@
             <td>${escapeHtml(s.corresponding_name)}<br><span style="color:#667085;">${escapeHtml(s.corresponding_email)}</span></td>
             <td>${fileLinks}</td>
             <td>${date}</td>
-            <td>
-              <select data-submission-id="${s.id}">${options}</select>
-              <span class="save-status"></span>
-            </td>
+            <td>${statusCell}</td>
           </tr>`;
       })
       .join('');
