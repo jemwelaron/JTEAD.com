@@ -17,9 +17,18 @@ class User(db.Model, UserMixin):
     password_hash = db.Column(db.String(255), nullable=False)
     is_editor = db.Column(db.Boolean, nullable=False, default=False)
     email_verified = db.Column(db.Boolean, nullable=False, default=False)
+    # Bumped on every password change/reset. Embedded in the session cookie
+    # (see get_id() below) so that changing your password invalidates any
+    # other already-authenticated session/remember-me cookie — e.g. one an
+    # attacker holds on a shared computer, or a leaked cookie — instead of
+    # only affecting future logins.
+    session_version = db.Column(db.Integer, nullable=False, default=1)
     created_at = db.Column(db.DateTime, nullable=False, default=utcnow)
 
     submissions = db.relationship("Submission", backref="author", lazy=True)
+
+    def get_id(self):
+        return f"{self.id}.{self.session_version}"
 
 
 class Submission(db.Model):

@@ -42,7 +42,15 @@ main_bp = Blueprint("main", __name__)
 
 @login_manager.user_loader
 def load_user(user_id):
-    return db.session.get(User, int(user_id))
+    # user_id is User.get_id()'s "<id>.<session_version>" — a session/
+    # remember-cookie whose embedded version doesn't match the user's
+    # current one (i.e. the password was changed/reset since this cookie
+    # was issued) is treated as logged out rather than silently accepted.
+    raw_id, _, version = user_id.partition(".")
+    user = db.session.get(User, int(raw_id))
+    if not user or str(user.session_version) != version:
+        return None
+    return user
 
 
 @login_manager.unauthorized_handler
@@ -84,6 +92,19 @@ def submission_rate_limit_key():
     return request.remote_addr or "unknown"
 
 
+def login_email_rate_limit_key():
+    # A second, per-account limit stacked on top of login's per-IP one.
+    # Per-IP alone doesn't stop a distributed attack (botnet/rotating
+    # proxies) from throwing unlimited password guesses at one specific
+    # victim account. Deliberately more generous than the per-IP limit
+    # (20/hour vs. 10/minute) so it only kicks in for sustained targeting
+    # of one account, not a legitimate user mistyping their password a
+    # few times.
+    data = request.get_json(silent=True) or {}
+    email = (data.get("email") or "").strip().lower()
+    return f"login-email:{email}" if email else (request.remote_addr or "unknown")
+
+
 # ---------- Static pages ----------
 
 
@@ -101,6 +122,7 @@ def csrf_token():
 
 
 @main_bp.route("/api/signup", methods=["POST"])
+@limiter.limit("10/hour")
 def signup():
     data = request.get_json(silent=True) or {}
     full_name = (data.get("full_name") or "").strip()
@@ -140,6 +162,7 @@ def signup():
 
 @main_bp.route("/api/login", methods=["POST"])
 @limiter.limit("10/minute")
+@limiter.limit("20/hour", key_func=login_email_rate_limit_key)
 def login():
     data = request.get_json(silent=True) or {}
     email = (data.get("email") or "").strip().lower()
@@ -222,27 +245,38 @@ def resend_verification():
 @login_required
 @limiter.limit("10/hour")
 def change_password():
+    # Resolve the real User object rather than operating on the
+    # current_user LocalProxy — passing the proxy itself into login_user()
+    # below makes Flask-Login store the proxy (not the underlying object)
+    # in `g`, which then recurses infinitely the next time anything reads
+    # current_user.
+    user = current_user._get_current_object()
+
     data = request.get_json(silent=True) or {}
     current_password = data.get("current_password") or ""
     new_password = data.get("new_password") or ""
 
-    if not check_password_hash(current_user.password_hash, current_password):
-        security_logger.warning(f"change-password wrong current password user_id={current_user.id}")
+    if not check_password_hash(user.password_hash, current_password):
+        security_logger.warning(f"change-password wrong current password user_id={user.id}")
         return jsonify({"error": "Current password is incorrect."}), 401
 
-    password_error = validate_password_strength(
-        new_password, email=current_user.email, full_name=current_user.full_name
-    )
+    password_error = validate_password_strength(new_password, email=user.email, full_name=user.full_name)
     if password_error:
         return jsonify({"error": password_error}), 400
 
-    current_user.password_hash = generate_password_hash(new_password)
+    user.password_hash = generate_password_hash(new_password)
+    user.session_version += 1
     db.session.commit()
-    security_logger.info(f"password changed email={current_user.email} ip={request.remote_addr}")
+    # Re-issue the session cookie with the bumped version so the browser
+    # that just made this change stays logged in — every *other* existing
+    # session/remember-cookie (the whole point of bumping the version) is
+    # now stale and will be treated as logged out on its next request.
+    login_user(user)
+    security_logger.info(f"password changed email={user.email} ip={request.remote_addr}")
 
     try:
         send_email(
-            to=current_user.email,
+            to=user.email,
             subject="Your JTEAD password was changed",
             body=(
                 "This is a confirmation that your JTEAD account password was just changed.\n\n"
@@ -251,7 +285,7 @@ def change_password():
             ),
         )
     except Exception:
-        current_app.logger.exception(f"Failed to send password-change notice to {current_user.email}")
+        current_app.logger.exception(f"Failed to send password-change notice to {user.email}")
 
     return jsonify({"ok": True})
 
@@ -322,6 +356,7 @@ def reset_password():
         return jsonify({"error": password_error}), 400
 
     user.password_hash = generate_password_hash(new_password)
+    user.session_version += 1
     db.session.commit()
     security_logger.info(f"password reset completed email={user.email} ip={request.remote_addr}")
     return jsonify({"ok": True})
@@ -401,6 +436,12 @@ def submit_article():
     if missing:
         return submission_error(f"Missing required fields: {', '.join(missing)}")
 
+    # Every future email about this submission (confirmation, status
+    # changes) goes to this address — catch a malformed one at submit time
+    # rather than silently going nowhere later.
+    if not EMAIL_RE.match(form.get("ca-email", "").strip()):
+        return submission_error("Please enter a valid corresponding author email address.")
+
     if form.get("coi-status") == "yes" and not (form.get("coi-details") or "").strip():
         return submission_error("Please provide conflict of interest details.")
 
@@ -436,7 +477,12 @@ def submit_article():
     submission_dir.mkdir(parents=True, exist_ok=True)
     relative_paths = {}
     for field_name, file_storage in saved_paths.items():
-        filename = secure_filename(file_storage.filename)
+        # Prefixed with the field name so two files sharing an original
+        # filename (e.g. both uploaded as "paper.docx") can't collide and
+        # silently overwrite each other on disk — without this, the second
+        # field saved would clobber the first, and both DB columns would
+        # end up pointing at the same (wrong) file.
+        filename = f"{field_name}__{secure_filename(file_storage.filename)}"
         file_storage.save(submission_dir / filename)
         relative_paths[field_name] = f"{submission_dir_name}/{filename}"
 

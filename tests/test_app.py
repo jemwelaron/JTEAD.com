@@ -70,6 +70,22 @@ def test_login_wrong_password(client, valid_password):
     assert resp.status_code == 401
 
 
+def test_login_email_rate_limit_key_is_per_account(app):
+    from app import login_email_rate_limit_key
+
+    with app.test_request_context(
+        "/api/login", method="POST", json={"email": "Victim@Example.com", "password": "x"}
+    ):
+        assert login_email_rate_limit_key() == "login-email:victim@example.com"
+
+    with app.test_request_context("/api/login", method="POST", json={"password": "x"}):
+        # No email in the payload — falls back to per-IP instead of an
+        # empty "login-email:" key that would bucket every emailless
+        # request together under one shared limit.
+        key = login_email_rate_limit_key()
+        assert key and not key.startswith("login-email:")
+
+
 def test_login_unknown_email(client):
     resp = client.post("/api/login", json={"email": "nobody@example.com", "password": "whatever123"})
     assert resp.status_code == 401
@@ -159,6 +175,36 @@ def test_submit_article_creates_submission_record(client, valid_password, submis
     assert submission.status == "submitted"
 
 
+def test_submit_article_same_filename_across_fields_does_not_collide(
+    client, valid_password, submission_form_data
+):
+    from io import BytesIO
+
+    from models import Submission
+
+    signup(client, email="submitter8@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "submitter8@example.com"
+
+    # Two different files that happen to share an original filename — before
+    # the field-name prefix fix, the second one saved would silently
+    # overwrite the first on disk and both DB columns would point at the
+    # same (wrong) file.
+    manuscript_bytes = b"PK\x03\x04" + b"manuscript-content" + b"\x00" * 10
+    cover_letter_bytes = b"PK\x03\x04" + b"cover-letter-content" + b"\x00" * 10
+    submission_form_data["manuscript"] = (BytesIO(manuscript_bytes), "paper.docx")
+    submission_form_data["cover_letter"] = (BytesIO(cover_letter_bytes), "paper.docx")
+
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+
+    submission = Submission.query.filter_by(user_id=1).first()
+    assert submission.manuscript_path != submission.cover_letter_path
+
+    manuscript_resp = client.get(f"/api/my-submissions/{submission.id}/files/manuscript")
+    cover_letter_resp = client.get(f"/api/my-submissions/{submission.id}/files/cover_letter")
+    assert manuscript_resp.data == manuscript_bytes
+    assert cover_letter_resp.data == cover_letter_bytes
+
+
 def test_submit_article_missing_required_field(client, valid_password, submission_form_data):
     signup(client, email="submitter3@example.com", password=valid_password)
     del submission_form_data["articleTitle"]
@@ -198,6 +244,16 @@ def test_submit_article_missing_ethics_ack(client, valid_password, submission_fo
     resp = client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
     assert resp.status_code == 302
     assert "error=" in resp.headers["Location"]
+
+
+def test_submit_article_invalid_corresponding_email_rejected(client, valid_password, submission_form_data):
+    from urllib.parse import unquote
+
+    signup(client, email="submitter9@example.com", password=valid_password)
+    submission_form_data["ca-email"] = "not-an-email"
+    resp = client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    assert resp.status_code == 302
+    assert "valid corresponding author email" in unquote(resp.headers["Location"])
 
 
 def test_my_submissions_requires_login(client):
@@ -333,6 +389,22 @@ def test_submit_article_rate_limited(client, valid_password, app):
     assert 429 in statuses
 
 
+def test_signup_rate_limited(client, app):
+    from extensions import limiter
+
+    app.config["RATELIMIT_ENABLED"] = True
+    limiter.init_app(app)
+
+    statuses = [
+        client.post(
+            "/api/signup",
+            json={"full_name": "Flood", "email": f"flood{i}@example.com", "password": "GoodPassword123"},
+        ).status_code
+        for i in range(15)
+    ]
+    assert 429 in statuses
+
+
 # ---------- Change password ----------
 
 
@@ -396,6 +468,78 @@ def test_change_password_sends_notification_email(client, valid_password, monkey
 
     assert sent["to"] == "changepw4@example.com"
     assert "password was changed" in sent["subject"].lower()
+
+
+def _request(client, method, *args, **kwargs):
+    # Flask's `g` is scoped to the *app context*, not the request — and the
+    # `app` fixture holds one ambient app context open for the whole test
+    # (so plain ORM queries like `Submission.query...` work directly in test
+    # bodies). Flask-Login's current_user is a lazy, cache-once-per-`g`
+    # LocalProxy, so without this, a second test_client() sharing that same
+    # ambient context would keep seeing whichever user was first resolved
+    # into `g`, regardless of which client's cookies the next call actually
+    # sends. Real production requests never share an app context this way —
+    # every request gets its own from scratch — so this is purely a test
+    # harness quirk, not something the app itself needs to handle. Clearing
+    # it before each call forces Flask-Login to re-resolve current_user from
+    # that specific call's actual session cookie.
+    from flask import g
+
+    if hasattr(g, "_login_user"):
+        del g._login_user
+    return getattr(client, method)(*args, **kwargs)
+
+
+def test_change_password_invalidates_other_sessions(app, valid_password):
+    # Two independent cookie jars against the same app/db — simulates the
+    # account being logged in on two different browsers/devices at once.
+    client_a = app.test_client()
+    client_b = app.test_client()
+
+    signup(client_a, email="twosession@example.com", password=valid_password)
+    _request(
+        client_b,
+        "post",
+        "/api/login",
+        json={"email": "twosession@example.com", "password": valid_password},
+    )
+
+    # Both sessions work before the change.
+    assert _request(client_a, "get", "/api/me").status_code == 200
+    assert _request(client_b, "get", "/api/me").status_code == 200
+
+    _request(
+        client_a,
+        "post",
+        "/api/change-password",
+        json={"current_password": valid_password, "new_password": "BrandNewPass99"},
+    )
+
+    # client_a made the change and gets a refreshed cookie, so it stays in.
+    assert _request(client_a, "get", "/api/me").status_code == 200
+    # client_b's cookie was issued before the change and embeds the old
+    # session_version — it must now be treated as logged out.
+    assert _request(client_b, "get", "/api/me").status_code == 401
+
+
+def test_reset_password_invalidates_other_sessions(client, app, valid_password):
+    signup(client, email="resetinvalidate@example.com", password=valid_password)
+    assert _request(client, "get", "/api/me").status_code == 200
+
+    token = _make_reset_token(app, "resetinvalidate@example.com", valid_password)
+    # A separate client performs the reset (mirrors the real flow — reset
+    # links are used from an unauthenticated browser context).
+    reset_client = app.test_client()
+    _request(
+        reset_client,
+        "post",
+        "/api/reset-password",
+        json={"token": token, "password": "BrandNewPass99"},
+    )
+
+    # The original session, still holding a cookie from before the reset,
+    # must no longer be treated as logged in.
+    assert _request(client, "get", "/api/me").status_code == 401
 
 
 # ---------- Password reset ----------
