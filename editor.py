@@ -1,6 +1,8 @@
+import csv
+import io
 from functools import wraps
 
-from flask import Blueprint, current_app, jsonify, request, send_from_directory
+from flask import Blueprint, Response, current_app, jsonify, request, send_from_directory
 from flask_login import current_user, login_required
 
 from mailer import send_email
@@ -44,6 +46,44 @@ def list_submissions():
             }
             for s in submissions
         ]
+    )
+
+
+@editor_bp.route("/submissions/export")
+@editor_required
+def export_submissions():
+    submissions = Submission.query.order_by(Submission.created_at.desc()).all()
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(
+        [
+            "ID", "Title", "Track", "Status", "Submitted",
+            "Corresponding Name", "Corresponding Email", "Author Account Email",
+            "Reviewers Assigned", "Reviews Submitted",
+        ]
+    )
+    for s in submissions:
+        writer.writerow(
+            [
+                s.id,
+                s.title,
+                s.track,
+                STATUS_LABELS.get(s.status, s.status),
+                s.created_at.isoformat(),
+                s.corresponding_name,
+                s.corresponding_email,
+                s.author.email,
+                len(s.review_assignments),
+                sum(1 for r in s.review_assignments if r.submitted_at),
+            ]
+        )
+
+    security_logger.info(f"submissions exported by_user_id={current_user.id}")
+    return Response(
+        buffer.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=jtead-submissions.csv"},
     )
 
 
@@ -251,6 +291,7 @@ def list_reviews(submission_id):
                 "comments_to_author": r.comments_to_author,
                 "comments_to_editor": r.comments_to_editor,
                 "submitted_at": r.submitted_at.isoformat() if r.submitted_at else None,
+                "declined_at": r.declined_at.isoformat() if r.declined_at else None,
             }
             for r in submission.review_assignments
         ]

@@ -13,6 +13,7 @@
   .editor-table th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
   .status-pending { color: #aa844c; font-weight: 600; }
   .status-submitted { color: #1e6b34; font-weight: 600; }
+  .status-declined { color: #b3261e; font-weight: 600; }
   .denied-notice { background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 14px 16px; margin-top: 20px; }
 </style>
 </head>
@@ -192,9 +193,9 @@
         const date = new Date(a.assigned_at).toLocaleDateString(undefined, {
           year: 'numeric', month: 'long', day: 'numeric',
         });
-        const status = a.submitted_at
-          ? '<span class="status-submitted">Submitted</span>'
-          : '<span class="status-pending">Pending</span>';
+        let status = '<span class="status-pending">Pending</span>';
+        if (a.submitted_at) status = '<span class="status-submitted">Submitted</span>';
+        else if (a.declined_at) status = '<span class="status-declined">Declined</span>';
         return `
           <tr>
             <td><a href="review-form.html?assignment=${a.id}">${escapeHtml(a.title)}</a></td>

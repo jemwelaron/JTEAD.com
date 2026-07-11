@@ -25,6 +25,7 @@
   .reviewer-empty { color: #667085; }
   .reviewer-status-pending { color: #aa844c; }
   .reviewer-status-submitted { color: #1e6b34; }
+  .reviewer-status-declined { color: #b3261e; }
   .reviewer-remove-btn { border: none; background: none; color: #b3261e; cursor: pointer; font-size: 12px; padding: 0; }
   .assign-reviewer-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
   .assign-reviewer-select { padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
@@ -113,6 +114,7 @@
         <option value="">All statuses</option>
       </select>
       <span id="resultCount" class="result-count"></span>
+      <a href="/api/editor/submissions/export" class="btn-small-outline" style="margin-left:auto;">Export CSV</a>
     </div>
     <table class="editor-table">
       <thead>
@@ -228,9 +230,9 @@
         const recommendation = r.recommendation
           ? REVIEW_RECOMMENDATION_LABELS[r.recommendation] || r.recommendation
           : null;
-        const status = r.submitted_at
-          ? `<span class="reviewer-status-submitted">Submitted — ${escapeHtml(recommendation)}</span>`
-          : '<span class="reviewer-status-pending">Pending</span>';
+        let status = '<span class="reviewer-status-pending">Pending</span>';
+        if (r.submitted_at) status = `<span class="reviewer-status-submitted">Submitted — ${escapeHtml(recommendation)}</span>`;
+        else if (r.declined_at) status = '<span class="reviewer-status-declined">Declined</span>';
         const removeBtn = r.submitted_at
           ? ''
           : `<button type="button" class="reviewer-remove-btn" data-assignment-id="${r.id}">Remove</button>`;
@@ -381,10 +383,19 @@
         if (s.status === 'withdrawn') {
           statusCell = `<span class="pdf-badge">${escapeHtml(STATUS_LABELS.withdrawn)}</span>`;
         } else {
-          const options = EDITABLE_STATUSES
+          // "revision-submitted" isn't itself editor-settable (it's only
+          // ever reached via the author's own resubmission), but it IS a
+          // real status editors need to see accurately reflected and act
+          // on — prepend it as a genuine option, not editable *to*, but
+          // correctly shown as the current selection, so the dropdown
+          // never silently mis-renders a status it doesn't recognize.
+          const optionValues = EDITABLE_STATUSES.includes(s.status)
+            ? EDITABLE_STATUSES
+            : [s.status, ...EDITABLE_STATUSES];
+          const options = optionValues
             .map((value) => {
               const selected = value === s.status ? ' selected' : '';
-              return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(STATUS_LABELS[value])}</option>`;
+              return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(STATUS_LABELS[value] || value)}</option>`;
             })
             .join('');
           statusCell = `<select data-submission-id="${s.id}">${options}</select><span class="save-status" aria-live="polite"></span>`;

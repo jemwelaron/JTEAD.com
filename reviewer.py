@@ -57,6 +57,7 @@ def list_assignments():
                 "track": a.submission.track,
                 "assigned_at": a.assigned_at.isoformat(),
                 "submitted_at": a.submitted_at.isoformat() if a.submitted_at else None,
+                "declined_at": a.declined_at.isoformat() if a.declined_at else None,
                 "recommendation": a.recommendation,
             }
             for a in assignments
@@ -85,6 +86,7 @@ def assignment_detail(assignment_id):
             "comments_to_author": assignment.comments_to_author,
             "comments_to_editor": assignment.comments_to_editor,
             "submitted_at": assignment.submitted_at.isoformat() if assignment.submitted_at else None,
+            "declined_at": assignment.declined_at.isoformat() if assignment.declined_at else None,
         }
     )
 
@@ -118,6 +120,8 @@ def submit_review(assignment_id):
 
     if assignment.submitted_at:
         return jsonify({"error": "This review has already been submitted."}), 400
+    if assignment.declined_at:
+        return jsonify({"error": "You've already declined this assignment."}), 400
 
     data = request.get_json(silent=True) or {}
     recommendation = data.get("recommendation")
@@ -153,5 +157,41 @@ def submit_review(assignment_id):
             )
         except Exception:
             current_app.logger.exception(f"Failed to send review-submitted notice to {editor.email}")
+
+    return jsonify({"ok": True})
+
+
+@reviewer_bp.route("/assignments/<int:assignment_id>/decline", methods=["POST"])
+@reviewer_required
+def decline_review(assignment_id):
+    assignment = _get_own_assignment(assignment_id)
+    if not assignment:
+        return jsonify({"error": "Assignment not found."}), 404
+
+    if assignment.submitted_at:
+        return jsonify({"error": "This review has already been submitted."}), 400
+    if assignment.declined_at:
+        return jsonify({"error": "You've already declined this assignment."}), 400
+
+    assignment.declined_at = datetime.now(timezone.utc)
+    db.session.commit()
+    security_logger.info(
+        f"review declined assignment_id={assignment_id} submission_id={assignment.submission_id} "
+        f"by_user_id={current_user.id}"
+    )
+
+    editors = User.query.filter_by(is_editor=True).all()
+    for editor in editors:
+        try:
+            send_email(
+                to=editor.email,
+                subject=f'JTEAD: {current_user.full_name} declined a review for "{assignment.submission.title}"',
+                body=(
+                    f'{current_user.full_name} is unable to review "{assignment.submission.title}" and has '
+                    "declined the assignment. Assign a different reviewer from the Editor Dashboard."
+                ),
+            )
+        except Exception:
+            current_app.logger.exception(f"Failed to send review-declined notice to {editor.email}")
 
     return jsonify({"ok": True})

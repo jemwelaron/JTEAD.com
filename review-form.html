@@ -25,6 +25,8 @@
   .form-error { display: none; background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 10px 12px; font-size: 13px; margin: 0 0 16px; }
   .form-error.visible { display: block; }
   .already-submitted-badge { display: inline-block; background: #eaf6ec; color: #1e6b34; border: 1px solid #c2e5c8; border-radius: 4px; padding: 6px 12px; font-size: 13px; margin-top: 16px; }
+  .already-declined-badge { display: inline-block; background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 6px 12px; font-size: 13px; margin-top: 16px; }
+  .decline-btn { background: none; border: none; color: #b3261e; cursor: pointer; font-size: 13px; margin-left: 16px; text-decoration: underline; }
   .not-found { margin-top: 24px; }
 </style>
 </head>
@@ -136,6 +138,7 @@
           <p class="field-hint">Only the editorial team sees this.</p>
         </div>
         <button type="submit" class="primary-action-btn" id="submit-btn">Submit Review</button>
+        <button type="button" class="decline-btn" id="decline-btn">I can't review this</button>
       </form>
 
       <div id="already-submitted" class="hidden">
@@ -145,6 +148,10 @@
           <div class="detail-field detail-full"><h4>Comments to Author</h4><p id="submittedCommentsAuthor"></p></div>
           <div class="detail-field detail-full"><h4>Confidential Comments to Editor</h4><p id="submittedCommentsEditor"></p></div>
         </div>
+      </div>
+
+      <div id="already-declined" class="hidden">
+        <span class="already-declined-badge">You declined this assignment</span>
       </div>
     </div>
   </div>
@@ -267,6 +274,12 @@
       return;
     }
 
+    if (a.declined_at) {
+      document.getElementById('review-form').classList.add('hidden');
+      document.getElementById('already-declined').classList.remove('hidden');
+      return;
+    }
+
     document.getElementById('review-form').addEventListener('submit', async (event) => {
       event.preventDefault();
       const form = event.target;
@@ -292,6 +305,26 @@
       } catch (err) {
         showError(errorEl, err.message);
         btn.disabled = false;
+      }
+    });
+
+    document.getElementById('decline-btn').addEventListener('click', async () => {
+      if (!window.confirm("Decline this review assignment? The editor will need to find another reviewer.")) return;
+      const errorEl = document.getElementById('form-error');
+      clearError(errorEl);
+      document.getElementById('decline-btn').disabled = true;
+      try {
+        const csrfToken = await getCsrfToken();
+        const declineRes = await fetch(`/api/reviewer/assignments/${a.id}/decline`, {
+          method: 'POST',
+          headers: { 'X-CSRFToken': csrfToken },
+        });
+        const data = await declineRes.json().catch(() => ({}));
+        if (!declineRes.ok) throw new Error(data.error || 'Could not decline this assignment.');
+        window.location.reload();
+      } catch (err) {
+        showError(errorEl, err.message);
+        document.getElementById('decline-btn').disabled = false;
       }
     });
   })();

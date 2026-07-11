@@ -10,6 +10,7 @@ const STATUS_LABELS = {
   accepted: "Accepted",
   rejected: "Rejected",
   "revision-requested": "Revision Requested",
+  "revision-submitted": "Revision Submitted",
   withdrawn: "Withdrawn",
 };
 

@@ -126,6 +126,11 @@ class ReviewAssignment(db.Model):
     comments_to_editor = db.Column(db.Text, nullable=True)  # never shown to the author
     submitted_at = db.Column(db.DateTime, nullable=True)
 
+    # A reviewer who can't take the assignment declines instead of just
+    # never responding — lets the editor see that explicitly and reassign,
+    # rather than an assignment silently sitting at "pending" forever.
+    declined_at = db.Column(db.DateTime, nullable=True)
+
     reviewer = db.relationship("User", foreign_keys=[reviewer_id])
     assigned_by = db.relationship("User", foreign_keys=[assigned_by_user_id])
 

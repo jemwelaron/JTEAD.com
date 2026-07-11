@@ -1486,6 +1486,288 @@ def test_editor_list_submissions_includes_review_counts(client, valid_password, 
     assert match["reviews_submitted"] == 0
 
 
+# ---------- Revision resubmission ----------
+
+
+def _request_revision(client, submission_id):
+    """Puts a submission into "revision-requested" via an editor account,
+    then logs that editor back out so the caller can act as whoever they
+    need next (usually the original author)."""
+    editor_email = f"revisioneditor{submission_id}@example.com"
+    signup(client, email=editor_email, password="GoodPassword123")
+    _promote_to_editor(editor_email)
+    client.post(f"/api/editor/submissions/{submission_id}/status", json={"status": "revision-requested"})
+    client.post("/api/logout")
+
+
+def _fresh_revision_files(manuscript_bytes=None):
+    """The revise endpoint only reads request.files — it doesn't touch any
+    text fields — so a revision POST only ever needs fresh file tuples,
+    never the original submission_form_data (whose BytesIO streams were
+    already consumed by the first, real submission)."""
+    from io import BytesIO
+
+    docx_bytes = b"PK\x03\x04" + b"\x00" * 20
+    png_bytes = b"\x89PNG\r\n\x1a\n" + b"\x00" * 20
+    return {
+        "manuscript": (BytesIO(manuscript_bytes or docx_bytes), "revised-manuscript.docx"),
+        "graphical_abstract": (BytesIO(png_bytes), "revised-graphical.png"),
+        "cover_letter": (BytesIO(docx_bytes), "revised-cover.docx"),
+    }
+
+
+def test_can_revise_only_when_revision_requested(client, valid_password, submission_form_data):
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "revauthor1@example.com")
+    client.post("/api/login", json={"email": "revauthor1@example.com", "password": valid_password})
+    detail = client.get(f"/api/my-submissions/{submission_id}").get_json()
+    assert detail["can_revise"] is False
+
+    client.post("/api/logout")
+    _request_revision(client, submission_id)
+
+    client.post("/api/login", json={"email": "revauthor1@example.com", "password": valid_password})
+    detail = client.get(f"/api/my-submissions/{submission_id}").get_json()
+    assert detail["can_revise"] is True
+
+
+def test_revise_submission_rejected_when_not_revision_requested(
+    client, valid_password, submission_form_data
+):
+    from urllib.parse import unquote
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "revauthor2@example.com")
+    client.post("/api/login", json={"email": "revauthor2@example.com", "password": valid_password})
+
+    resp = client.post(
+        f"/api/my-submissions/{submission_id}/revise",
+        data=_fresh_revision_files(),
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+    assert "isn't awaiting a revision" in unquote(resp.headers["Location"])
+
+
+def test_revise_submission_requires_ownership(client, valid_password, submission_form_data):
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "revauthor3@example.com")
+    _request_revision(client, submission_id)
+
+    signup(client, email="nottherevauthor@example.com", password=valid_password)
+    resp = client.post(
+        f"/api/my-submissions/{submission_id}/revise",
+        data=_fresh_revision_files(),
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+    assert resp.headers["Location"] == "/my-submissions.html"
+
+
+def test_revise_submission_success_replaces_files_and_notifies_editors(
+    client, valid_password, submission_form_data, monkeypatch
+):
+    import app as app_module
+    from models import StatusChange, Submission
+
+    sent = []
+    monkeypatch.setattr(app_module, "send_email", lambda **kwargs: sent.append(kwargs))
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "revauthor4@example.com")
+    original = Submission.query.filter_by(id=submission_id).first()
+    original_manuscript_path = original.manuscript_path
+
+    _request_revision(client, submission_id)
+
+    client.post("/api/login", json={"email": "revauthor4@example.com", "password": valid_password})
+    # _submit_and_get_id and _request_revision already triggered their own
+    # emails (submission confirmation, revision-requested notice) — only
+    # care about what the revise call itself sends.
+    sent.clear()
+
+    revised_bytes = b"PK\x03\x04" + b"revised manuscript content" + b"\x00" * 10
+    resp = client.post(
+        f"/api/my-submissions/{submission_id}/revise",
+        data=_fresh_revision_files(revised_bytes),
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+    assert "revised=1" in resp.headers["Location"]
+
+    updated = Submission.query.filter_by(id=submission_id).first()
+    assert updated.status == "revision-submitted"
+    assert updated.manuscript_path != original_manuscript_path
+
+    download = client.get(f"/api/my-submissions/{submission_id}/files/manuscript")
+    assert download.data == revised_bytes
+
+    changes = StatusChange.query.filter_by(submission_id=submission_id).order_by(StatusChange.id).all()
+    assert [c.new_status for c in changes] == ["submitted", "revision-requested", "revision-submitted"]
+
+    assert len(sent) == 1
+    assert sent[0]["to"] == f"revisioneditor{submission_id}@example.com"
+    assert "revised manuscript" in sent[0]["subject"].lower()
+
+
+def test_revise_submission_validates_files(client, valid_password, submission_form_data):
+    from urllib.parse import unquote
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "revauthor5@example.com")
+    _request_revision(client, submission_id)
+
+    client.post("/api/login", json={"email": "revauthor5@example.com", "password": valid_password})
+    files = _fresh_revision_files()
+    del files["manuscript"]
+    resp = client.post(
+        f"/api/my-submissions/{submission_id}/revise",
+        data=files,
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 302
+    assert "is required" in unquote(resp.headers["Location"])
+
+
+def test_revision_submitted_status_is_withdrawable(client, valid_password, submission_form_data):
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "revauthor6@example.com")
+    _request_revision(client, submission_id)
+    client.post("/api/login", json={"email": "revauthor6@example.com", "password": valid_password})
+
+    client.post(
+        f"/api/my-submissions/{submission_id}/revise",
+        data=_fresh_revision_files(),
+        content_type="multipart/form-data",
+    )
+
+    detail = client.get(f"/api/my-submissions/{submission_id}").get_json()
+    assert detail["status"] == "revision-submitted"
+    assert detail["can_withdraw"] is True
+
+
+# ---------- Reviewer decline ----------
+
+
+def test_decline_review_success_notifies_editors(client, valid_password, submission_form_data, monkeypatch):
+    import reviewer as reviewer_module
+    from models import ReviewAssignment, User
+
+    sent = []
+    monkeypatch.setattr(reviewer_module, "send_email", lambda **kwargs: sent.append(kwargs))
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "declineauthor1@example.com")
+    signup(client, email="declinereviewer1@example.com", password=valid_password)
+    _promote_to_reviewer("declinereviewer1@example.com")
+    client.post("/api/logout")
+    signup(client, email="declineeditor1@example.com", password=valid_password)
+    _promote_to_editor("declineeditor1@example.com")
+    reviewer = User.query.filter_by(email="declinereviewer1@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "declinereviewer1@example.com", "password": valid_password})
+    resp = client.post(f"/api/reviewer/assignments/{assignment.id}/decline")
+    assert resp.status_code == 200
+    assert sent and sent[0]["to"] == "declineeditor1@example.com"
+
+    updated = ReviewAssignment.query.filter_by(id=assignment.id).first()
+    assert updated.declined_at is not None
+
+
+def test_decline_review_requires_reviewer_role(client, valid_password, submission_form_data):
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "declineauthor2@example.com")
+    signup(client, email="notareviewer3@example.com", password=valid_password)
+    resp = client.post("/api/reviewer/assignments/1/decline")
+    assert resp.status_code == 403
+
+
+def test_decline_review_cannot_decline_twice(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "declineauthor3@example.com")
+    signup(client, email="declinereviewer2@example.com", password=valid_password)
+    _promote_to_reviewer("declinereviewer2@example.com")
+    client.post("/api/logout")
+    signup(client, email="declineeditor2@example.com", password=valid_password)
+    _promote_to_editor("declineeditor2@example.com")
+    reviewer = User.query.filter_by(email="declinereviewer2@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "declinereviewer2@example.com", "password": valid_password})
+    first = client.post(f"/api/reviewer/assignments/{assignment.id}/decline")
+    assert first.status_code == 200
+    second = client.post(f"/api/reviewer/assignments/{assignment.id}/decline")
+    assert second.status_code == 400
+
+
+def test_submit_review_blocked_after_decline(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "declineauthor4@example.com")
+    signup(client, email="declinereviewer3@example.com", password=valid_password)
+    _promote_to_reviewer("declinereviewer3@example.com")
+    client.post("/api/logout")
+    signup(client, email="declineeditor3@example.com", password=valid_password)
+    _promote_to_editor("declineeditor3@example.com")
+    reviewer = User.query.filter_by(email="declinereviewer3@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "declinereviewer3@example.com", "password": valid_password})
+    client.post(f"/api/reviewer/assignments/{assignment.id}/decline")
+    resp = client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={"recommendation": "accept", "comments_to_author": "x"},
+    )
+    assert resp.status_code == 400
+
+
+def test_unassign_reviewer_allowed_after_decline(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "declineauthor5@example.com")
+    signup(client, email="declinereviewer4@example.com", password=valid_password)
+    _promote_to_reviewer("declinereviewer4@example.com")
+    client.post("/api/logout")
+    signup(client, email="declineeditor4@example.com", password=valid_password)
+    _promote_to_editor("declineeditor4@example.com")
+    reviewer = User.query.filter_by(email="declinereviewer4@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "declinereviewer4@example.com", "password": valid_password})
+    client.post(f"/api/reviewer/assignments/{assignment.id}/decline")
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "declineeditor4@example.com", "password": valid_password})
+    resp = client.delete(f"/api/editor/submissions/{submission_id}/reviewers/{assignment.id}")
+    assert resp.status_code == 200
+
+
+# ---------- CSV export ----------
+
+
+def test_export_submissions_requires_editor_role(client, valid_password):
+    signup(client, email="notaneditor3@example.com", password=valid_password)
+    resp = client.get("/api/editor/submissions/export")
+    assert resp.status_code == 403
+
+
+def test_export_submissions_returns_csv(client, valid_password, submission_form_data):
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "exportauthor1@example.com")
+    signup(client, email="exporteditor1@example.com", password=valid_password)
+    _promote_to_editor("exporteditor1@example.com")
+
+    resp = client.get("/api/editor/submissions/export")
+    assert resp.status_code == 200
+    assert resp.mimetype == "text/csv"
+    assert "attachment" in resp.headers["Content-Disposition"]
+
+    body = resp.get_data(as_text=True)
+    assert "Review Workflow Manuscript" in body
+    assert "exportauthor1@example.com" in body
+
+
 # ---------- Security logging ----------
 
 

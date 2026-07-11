@@ -16,6 +16,16 @@
   box-sizing: border-box;
 }
 
+/* Used across most JS-driven pages (my-submissions.html, editor-dashboard.html,
+   submission-detail.html, reviewer-dashboard.html, review-form.html, etc.) to
+   toggle content that should only appear once a fetch/condition resolves —
+   defined once here, shared by every page via this stylesheet, instead of
+   each page needing its own local copy (several previously had none at all,
+   silently leaving "hidden" elements visible the whole time). */
+.hidden {
+  display: none !important;
+}
+
 html {
   scroll-behavior: smooth;
 }

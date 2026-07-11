@@ -90,7 +90,16 @@ abstract, and any supplementary file — from `reviewer-dashboard.html`, and
 submit a recommendation plus comments (a public one to the author, an
 optional confidential one visible only to editors) via `review-form.html`.
 A review is immutable once submitted; if it needs to change, an editor
-removes the assignment and creates a fresh one.
+removes the assignment and creates a fresh one. A reviewer who can't take
+an assignment can decline it instead of leaving it silently pending —
+editors see the decline and assign someone else.
+
+When an editor sets a submission's status to "Revision Requested", the
+author gets a "Submit a Revision" form on their submission detail page to
+upload new files against the *same* submission (old files stay on disk,
+new ones just replace the DB pointers) — status becomes "Revision
+Submitted" and editors are notified, all without losing the existing
+review history or reviewer assignments.
 
 ## More
 

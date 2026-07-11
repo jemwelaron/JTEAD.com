@@ -22,6 +22,15 @@
   .withdraw-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
   .withdraw-status { margin-left: 10px; font-size: 13px; }
   .not-found { margin-top: 24px; }
+  .revision-card { max-width: 520px; margin-top: 28px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+  .revision-card .form-group { margin-bottom: 16px; }
+  .revision-card label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+  .revision-card .field-hint { font-size: 12px; color: #777; margin: 4px 0 0; }
+  .revision-submit-btn { background: #aa844c; color: #fff; border: none; padding: 12px 20px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 15px; }
+  .revision-submit-btn:hover { background: #967340; }
+  .banner { padding: 12px 16px; border-radius: 4px; margin-bottom: 16px; font-size: 14px; }
+  .banner-success { background: #eaf6ec; color: #1e6b34; border: 1px solid #c2e5c8; }
+  .banner-error { background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; }
 </style>
 </head>
 <body>
@@ -95,6 +104,8 @@
     <a href="my-submissions.html">Back to My Submissions</a>
   </div>
 
+  <div id="pageBanner"></div>
+
   <div id="detailWrap" class="hidden">
     <div class="detail-grid">
       <div class="detail-field"><h4>Status</h4><p id="fStatus"></p></div>
@@ -129,6 +140,34 @@
 
     <button class="withdraw-btn" id="withdrawBtn">Withdraw Submission</button>
     <span class="withdraw-status" id="withdrawStatus" aria-live="polite"></span>
+
+    <div id="revisionCard" class="revision-card hidden">
+      <h3>Submit a Revision</h3>
+      <p class="field-hint">An editor has requested revisions. Upload your revised files below — this replaces the files above and moves the submission back into review.</p>
+      <form id="revision-form" method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf_token" id="revisionCsrfToken">
+        <div class="form-group">
+          <label for="rev-manuscript">Revised Anonymized Manuscript <span>*</span></label>
+          <input type="file" id="rev-manuscript" name="manuscript" required>
+          <p class="field-hint">Format Allowed: doc, docx, rtf (Max 5MB)</p>
+        </div>
+        <div class="form-group">
+          <label for="rev-graphical">Revised Graphical Abstract <span>*</span></label>
+          <input type="file" id="rev-graphical" name="graphical_abstract" required>
+          <p class="field-hint">Format Allowed: pdf, png, tiff, jpeg (Max 5MB)</p>
+        </div>
+        <div class="form-group">
+          <label for="rev-cover">Revised Cover Letter <span>*</span></label>
+          <input type="file" id="rev-cover" name="cover_letter" required>
+          <p class="field-hint">Format Allowed: doc, docx, rtf (Max 5MB)</p>
+        </div>
+        <div class="form-group">
+          <label for="rev-supplementary">Revised Supplementary Data File (Optional)</label>
+          <input type="file" id="rev-supplementary" name="supplementary">
+        </div>
+        <button type="submit" class="revision-submit-btn">Submit Revision</button>
+      </form>
+    </div>
   </div>
 </main>
 
@@ -193,7 +232,14 @@
       return;
     }
 
-    const id = new URLSearchParams(window.location.search).get('id');
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    const banner = document.getElementById('pageBanner');
+    if (params.get('revised') === '1') {
+      banner.innerHTML = '<p class="banner banner-success">Your revision was submitted. It\'s back in the review queue.</p>';
+    } else if (params.get('error')) {
+      banner.innerHTML = `<p class="banner banner-error">${escapeHtml(params.get('error'))}</p>`;
+    }
     const res = await fetch(`/api/my-submissions/${encodeURIComponent(id)}`);
     if (!res.ok) {
       document.getElementById('pageTitle').textContent = 'Submission Details';
@@ -239,6 +285,14 @@
     document.getElementById('fFiles').innerHTML = fileFields
       .map(([field, label]) => `<a href="/api/my-submissions/${s.id}/files/${field}">${escapeHtml(label)}</a>`)
       .join('');
+
+    if (s.can_revise) {
+      const revisionCard = document.getElementById('revisionCard');
+      revisionCard.classList.remove('hidden');
+      const form = document.getElementById('revision-form');
+      form.action = `/api/my-submissions/${s.id}/revise`;
+      document.getElementById('revisionCsrfToken').value = await getCsrfToken();
+    }
 
     document.getElementById('fHistory').innerHTML = s.history
       .map((h) => {

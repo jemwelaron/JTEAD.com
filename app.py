@@ -29,7 +29,7 @@ from mailer import send_email
 from models import CoAuthor, StatusChange, Submission, User, db
 from password_rules import validate_password_strength
 from security_log import security_logger
-from statuses import WITHDRAWABLE_STATUSES
+from statuses import REVISABLE_STATUS, WITHDRAWABLE_STATUSES
 from submission_files import FILE_FIELD_COLUMNS
 
 EMAIL_RE = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
@@ -423,6 +423,52 @@ def submission_error(message):
     return redirect(f"/Submit%20portal.html?error={quote(message)}")
 
 
+def validate_and_save_files(files):
+    """Validates every uploaded file against FILE_FIELDS and, only once all
+    of them pass, saves them into a fresh submission directory. Shared by
+    submit_article (new submission) and revise_submission (resubmission
+    after revisions are requested) so the same extension/size/content-
+    signature rules apply either way. Returns (relative_paths, None) on
+    success or (None, error_message) on the first failure — nothing is
+    written to disk until validation fully passes."""
+    saved_paths = {}
+    for field_name, rules in FILE_FIELDS.items():
+        file_storage = files.get(field_name)
+        has_file = file_storage and file_storage.filename
+
+        if not has_file:
+            if rules["required"]:
+                return None, f"{rules['label']} is required."
+            continue
+
+        if not file_extension_ok(file_storage.filename, rules["extensions"]):
+            return None, f"{rules['label']}: file type not allowed."
+
+        if not file_size_ok(file_storage, rules["max_bytes"]):
+            return None, f"{rules['label']}: file is too large."
+
+        extension = file_storage.filename.rsplit(".", 1)[1]
+        if not file_content_matches_extension(file_storage, extension):
+            return None, f"{rules['label']}: file content doesn't match its extension."
+
+        saved_paths[field_name] = file_storage
+
+    submission_dir_name = uuid.uuid4().hex
+    submission_dir = current_app.config["UPLOAD_DIR"] / submission_dir_name
+    submission_dir.mkdir(parents=True, exist_ok=True)
+
+    relative_paths = {}
+    for field_name, file_storage in saved_paths.items():
+        # Prefixed with the field name so two files sharing an original
+        # filename (e.g. both uploaded as "paper.docx") can't collide and
+        # silently overwrite each other on disk.
+        filename = f"{field_name}__{secure_filename(file_storage.filename)}"
+        file_storage.save(submission_dir / filename)
+        relative_paths[field_name] = f"{submission_dir_name}/{filename}"
+
+    return relative_paths, None
+
+
 @main_bp.route("/submit-article", methods=["POST"])
 @login_required
 @limiter.limit("15/hour", key_func=submission_rate_limit_key)
@@ -464,43 +510,9 @@ def submit_article():
     if not all(form.get(f) == "on" for f in ("eth-1", "eth-2", "eth-3")):
         return submission_error("All three declarations must be acknowledged.")
 
-    # Validate every file up front before saving anything.
-    saved_paths = {}
-    submission_dir_name = uuid.uuid4().hex
-    submission_dir = current_app.config["UPLOAD_DIR"] / submission_dir_name
-
-    for field_name, rules in FILE_FIELDS.items():
-        file_storage = files.get(field_name)
-        has_file = file_storage and file_storage.filename
-
-        if not has_file:
-            if rules["required"]:
-                return submission_error(f"{rules['label']} is required.")
-            continue
-
-        if not file_extension_ok(file_storage.filename, rules["extensions"]):
-            return submission_error(f"{rules['label']}: file type not allowed.")
-
-        if not file_size_ok(file_storage, rules["max_bytes"]):
-            return submission_error(f"{rules['label']}: file is too large.")
-
-        extension = file_storage.filename.rsplit(".", 1)[1]
-        if not file_content_matches_extension(file_storage, extension):
-            return submission_error(f"{rules['label']}: file content doesn't match its extension.")
-
-        saved_paths[field_name] = file_storage
-
-    submission_dir.mkdir(parents=True, exist_ok=True)
-    relative_paths = {}
-    for field_name, file_storage in saved_paths.items():
-        # Prefixed with the field name so two files sharing an original
-        # filename (e.g. both uploaded as "paper.docx") can't collide and
-        # silently overwrite each other on disk — without this, the second
-        # field saved would clobber the first, and both DB columns would
-        # end up pointing at the same (wrong) file.
-        filename = f"{field_name}__{secure_filename(file_storage.filename)}"
-        file_storage.save(submission_dir / filename)
-        relative_paths[field_name] = f"{submission_dir_name}/{filename}"
+    relative_paths, error = validate_and_save_files(files)
+    if error:
+        return submission_error(error)
 
     submission = Submission(
         user_id=current_user.id,
@@ -622,6 +634,7 @@ def my_submission_detail(submission_id):
                 {"name": c.name, "email": c.email, "org": c.org} for c in submission.co_authors
             ],
             "can_withdraw": submission.status in WITHDRAWABLE_STATUSES,
+            "can_revise": submission.status == REVISABLE_STATUS,
             # Author-facing history intentionally omits who made each change
             # (editorial deliberation stays internal) — just what changed
             # and when.
@@ -673,6 +686,64 @@ def withdraw_submission(submission_id):
     db.session.commit()
     security_logger.info(f"submission withdrawn id={submission_id} user_id={current_user.id}")
     return jsonify({"ok": True})
+
+
+def revision_error(submission_id, message):
+    return redirect(f"/submission-detail.html?id={submission_id}&error={quote(message)}")
+
+
+@main_bp.route("/api/my-submissions/<int:submission_id>/revise", methods=["POST"])
+@login_required
+@limiter.limit("15/hour", key_func=submission_rate_limit_key)
+def revise_submission(submission_id):
+    submission = Submission.query.filter_by(id=submission_id, user_id=current_user.id).first()
+    if not submission:
+        return redirect("/my-submissions.html")
+
+    if submission.status != REVISABLE_STATUS:
+        return revision_error(submission_id, "This submission isn't awaiting a revision.")
+
+    relative_paths, error = validate_and_save_files(request.files)
+    if error:
+        return revision_error(submission_id, error)
+
+    # Old files are left on disk rather than deleted — orphaned storage is
+    # a cheap tradeoff against ever losing an academic file to a bug in
+    # this exact "swap them out" path.
+    submission.manuscript_path = relative_paths["manuscript"]
+    submission.graphical_abstract_path = relative_paths["graphical_abstract"]
+    submission.cover_letter_path = relative_paths["cover_letter"]
+    if "supplementary" in relative_paths:
+        submission.supplementary_path = relative_paths["supplementary"]
+
+    old_status = submission.status
+    submission.status = "revision-submitted"
+    db.session.add(
+        StatusChange(
+            submission_id=submission.id,
+            old_status=old_status,
+            new_status="revision-submitted",
+            changed_by_user_id=current_user.id,
+        )
+    )
+    db.session.commit()
+    security_logger.info(f"submission revised id={submission_id} user_id={current_user.id}")
+
+    editors = User.query.filter_by(is_editor=True).all()
+    for editor in editors:
+        try:
+            send_email(
+                to=editor.email,
+                subject=f'JTEAD: a revised manuscript was submitted for "{submission.title}"',
+                body=(
+                    f'{current_user.full_name} submitted a revised version of "{submission.title}".\n\n'
+                    "Review it from the Editor Dashboard."
+                ),
+            )
+        except Exception:
+            current_app.logger.exception(f"Failed to send revision notice to {editor.email}")
+
+    return redirect(f"/submission-detail.html?id={submission_id}&revised=1")
 
 
 # ---------- Security headers ----------

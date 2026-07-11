@@ -329,3 +329,93 @@ def test_peer_review_flow(page, base_url, e2e_app, tmp_path):
     details_row.wait_for()
     reviewers_section = details_row.locator(".reviewers-section")
     assert "Submitted — Minor Revisions" in reviewers_section.inner_text()
+
+
+def test_revision_resubmission_flow(page, base_url, e2e_app, tmp_path):
+    author_email = "e2e-author4@example.com"
+    editor_email = "e2e-editor3@example.com"
+
+    page.goto(f"{base_url}/authentication.html")
+    page.click("#show-signup-btn")
+    page.fill("#signup-name", "E2E Author Four")
+    page.fill("#signup-email", author_email)
+    page.fill("#signup-password", "Harbor Whistle33")
+    page.click("#signup-form button[type=submit]")
+    page.wait_for_url(re.compile(r"my-submissions\.html"))
+    _verify_email(e2e_app, author_email)
+
+    page.goto(f"{base_url}/Submit%20portal.html")
+    page.select_option("#track", "interior-design")
+    page.fill("#keywords", "revision, e2e")
+    page.fill("#title", "Revision E2E Manuscript")
+    page.fill("#abstract", "Manuscript used to test the revision resubmission flow end to end.")
+    page.fill("#ca-name", "E2E Author Four")
+    page.fill("#ca-phone", "09171234567")
+    page.fill("#ca-email", author_email)
+    page.fill("#ca-org", "University of San Agustin")
+    page.fill("#ca-city", "Iloilo City")
+    page.select_option("#ca-country", "PH")
+    page.select_option("#ca-identity", "author")
+    page.select_option("#ca-category", "student")
+    page.select_option("#coi-status", "no")
+    manuscript, graphical, cover = _make_upload_files(tmp_path)
+    page.set_input_files("#file-anon", str(manuscript))
+    page.set_input_files("#file-graphical", str(graphical))
+    page.set_input_files("#file-cover", str(cover))
+    page.check("#eth-1")
+    page.check("#eth-2")
+    page.check("#eth-3")
+    page.click("button:has-text('SUBMIT MANUSCRIPT')")
+    page.wait_for_url(re.compile(r"submitted=1"))
+
+    page.goto(f"{base_url}/my-submissions.html")
+    page.click("#accountLink")
+    page.wait_for_url(re.compile(r"index\.html"))
+
+    # Editor requests revisions.
+    page.goto(f"{base_url}/authentication.html")
+    page.click("#show-signup-btn")
+    page.fill("#signup-name", "E2E Editor Three")
+    page.fill("#signup-email", editor_email)
+    page.fill("#signup-password", "Harbor Whistle33")
+    page.click("#signup-form button[type=submit]")
+    page.wait_for_url(re.compile(r"my-submissions\.html"))
+    _promote_to_editor(e2e_app, editor_email)
+
+    page.goto(f"{base_url}/editor-dashboard.html")
+    page.wait_for_selector("text=Revision E2E Manuscript")
+    row = page.locator("tr", has_text="Revision E2E Manuscript")
+    row.locator("select[data-submission-id]").select_option("revision-requested")
+    page.wait_for_selector("text=Saved")
+    page.click("#accountLink")
+    page.wait_for_url(re.compile(r"index\.html"))
+
+    # Author sees the revision form and uploads a revised manuscript.
+    page.goto(f"{base_url}/authentication.html")
+    page.fill("#login-email", author_email)
+    page.fill("#login-password", "Harbor Whistle33")
+    page.click("#login-form button[type=submit]")
+    page.wait_for_url(re.compile(r"my-submissions\.html"))
+
+    page.goto(f"{base_url}/my-submissions.html")
+    page.click("text=Revision E2E Manuscript")
+    page.wait_for_url(re.compile(r"submission-detail\.html"))
+    page.wait_for_selector("#fStatus:has-text('Revision Requested')")
+    assert page.is_visible("#revisionCard")
+
+    revised_manuscript = tmp_path / "revised-manuscript.docx"
+    revised_manuscript.write_bytes(b"PK\x03\x04" + b"revised content" + b"\x00" * 10)
+    page.set_input_files("#rev-manuscript", str(revised_manuscript))
+    page.set_input_files("#rev-graphical", str(graphical))
+    page.set_input_files("#rev-cover", str(cover))
+    page.click("button:has-text('Submit Revision')")
+
+    page.wait_for_url(re.compile(r"revised=1"))
+    page.wait_for_selector(".banner-success")
+    page.wait_for_selector("#fStatus:has-text('Revision Submitted')")
+    assert page.locator("#fHistory li").count() == 3
+    # The withdraw button should still be present — a revision-submitted
+    # manuscript can still be withdrawn (per WITHDRAWABLE_STATUSES), and the
+    # revision form itself should be gone now that it's no longer requested.
+    assert page.is_visible("#withdrawBtn")
+    assert not page.is_visible("#revisionCard")
