@@ -38,6 +38,73 @@ If the account is managed under a Workspace org and app passwords are
 disabled organization-wide, IT needs to enable them for this account
 specifically — there's no app-side workaround for that.
 
+## 0c. Deploying on PythonAnywhere (free tier)
+
+Chosen here specifically because its free tier has **persistent** storage
+(it's always-on hosting, not an ephemeral container) — unlike Render/
+Railway/Heroku free tiers, files this app writes to disk
+(`jtead-instance/`) actually survive. Tradeoffs of the free tier: no custom
+domain (you get `<username>.pythonanywhere.com`), a limited daily CPU
+allowance, and **outbound network access restricted to an allowlist of
+domains** — this may block SMTP to `smtp.gmail.com` on port 587 until
+either the allowlist covers it or you're on a paid tier; the app's
+log-instead-of-email fallback (§5) means this doesn't block launching,
+just real email delivery. This whole section replaces §§2–3 (gunicorn/
+nginx) — PythonAnywhere's own web-app dashboard handles process
+management and HTTPS for you.
+
+1. Sign up at pythonanywhere.com and open a **Bash console** from the
+   dashboard.
+2. Get the code there. Since this repo has no GitHub remote yet, push it
+   to GitHub first (ask if you want help with that), then:
+   ```
+   git clone <your-repo-url> jtead-website
+   ```
+   `jtead-instance/` needs to end up as a *sibling* of `jtead-website/`
+   (see `config.py`) — cloning into your home directory as above already
+   sets that up correctly (`~/jtead-website` and `~/jtead-instance`).
+3. Set up the environment:
+   ```
+   cd jtead-website
+   python3.10 -m venv .venv   # match whatever Python version you pick in the Web tab
+   source .venv/bin/activate
+   pip install -r requirements.txt
+
+   cp .env.example .env
+   nano .env   # set SECRET_KEY (generate with the command in .env.example), leave SMTP_* unset for now
+   ```
+4. Build the database:
+   ```
+   export FLASK_APP=wsgi.py
+   flask db upgrade
+   ```
+5. In the dashboard's **Web** tab: "Add a new web app" → **Manual
+   configuration** (not the Flask template — this app has its own
+   `wsgi.py`) → pick the same Python version as your venv.
+   - Under **Virtualenv**, point it at `/home/<username>/jtead-website/.venv`.
+   - Under **Code**, set the WSGI configuration file — replace its
+     contents with:
+     ```python
+     import sys
+     path = '/home/<username>/jtead-website'
+     if path not in sys.path:
+         sys.path.append(path)
+
+     from wsgi import app as application
+     ```
+     (`.env` loading already happens automatically — `app.py` calls
+     `load_dotenv()` at import time.)
+6. Hit the green **Reload** button on the Web tab. Your site is now live
+   at `https://<username>.pythonanywhere.com` — TLS is already handled for
+   you on that domain, no certbot/nginx needed.
+7. Promote your first editor from the same Bash console:
+   ```
+   flask make-editor
+   ```
+
+For schema changes later: open a Bash console, `git pull`, `flask db
+upgrade`, then hit **Reload** on the Web tab again.
+
 ## 1. Environment
 
 Set these in the production `.env` (or your host's secrets manager — don't
