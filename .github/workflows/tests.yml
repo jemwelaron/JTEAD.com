@@ -20,4 +20,24 @@ jobs:
       - name: Run test suite
         env:
           SECRET_KEY: ci-secret-key-not-for-production
-        run: pytest -v
+        run: pytest -v --ignore=tests/e2e
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+
+      - name: Install Playwright's browser
+        run: playwright install --with-deps chromium
+
+      - name: Run E2E test suite
+        env:
+          SECRET_KEY: ci-secret-key-not-for-production
+        run: pytest -v tests/e2e

@@ -113,6 +113,20 @@ def index():
     return current_app.send_static_file("index.html")
 
 
+@main_bp.route("/healthz")
+def healthz():
+    # For uptime monitors / load balancer health checks — deliberately
+    # unauthenticated and unrate-limited (those need to poll it frequently
+    # and shouldn't ever get 429'd) but doesn't reveal anything beyond
+    # "the app can talk to its database right now."
+    try:
+        db.session.execute(db.text("SELECT 1"))
+    except Exception:
+        current_app.logger.exception("Health check DB connectivity failed")
+        return jsonify({"ok": False, "error": "database unavailable"}), 503
+    return jsonify({"ok": True})
+
+
 # ---------- Auth API ----------
 
 
@@ -661,16 +675,26 @@ def withdraw_submission(submission_id):
 
 # ---------- Security headers ----------
 
-# NOTE on script-src/style-src: several pages (notably "Submit portal.html",
-# which predates this backend work) rely on inline onclick handlers and
-# inline <script>/<style> blocks, so this CSP allows 'unsafe-inline' for
-# scripts and styles rather than breaking them. That specifically means this
-# CSP does NOT block the class of attribute-injection XSS fixed in
-# my-submissions.html — correct output escaping is what actually prevents
-# that, not this header. What this CSP does still buy: no script/style/frame/
-# object can load from a third-party domain, and the page can't be framed by
-# another site. Tightening further to a nonce-based policy would mean
-# reworking every inline handler site-wide — a separate, bigger project.
+# NOTE on script-src/style-src (reassessed — see history for the prior
+# version of this note): "Submit portal.html" and authentication.html no
+# longer use inline onclick/onchange/oninput attributes; those 18
+# occurrences were converted to addEventListener. That cleanup is real but
+# doesn't get us to removing 'unsafe-inline' from script-src: every page
+# built for this backend (~10 of them — my-submissions.html, editor-
+# dashboard.html, submission-detail.html, account-settings.html, etc.) puts
+# its actual page logic in an inline <script>...</script> block rather than
+# an external .js file, and browsers block ALL inline script content under a
+# CSP without 'unsafe-inline' (or a matching nonce/hash) — attribute handlers
+# were never the only thing keeping this open. A nonce-based policy would
+# need per-request values, which means Jinja-rendering these pages instead
+# of serving them as static files — a real architecture change, not a CSP
+# tweak. style-src has the same shape: 32 inline style="..." attributes
+# across 12 pages. Given that, 'unsafe-inline' stays for now. This
+# specifically means the CSP does NOT block the class of attribute-injection
+# XSS fixed in my-submissions.html — correct output escaping is what
+# actually prevents that, not this header. What this CSP does still buy: no
+# script/style/frame/object can load from a third-party domain, and the page
+# can't be framed by another site.
 def set_security_headers(response):
     response.headers["Content-Security-Policy"] = (
         "default-src 'self'; "

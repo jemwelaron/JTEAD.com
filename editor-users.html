@@ -88,7 +88,7 @@
   </div>
   <p class="page-intro">Any existing editor can grant or remove editor access on another account.</p>
 
-  <div id="deniedNotice" class="denied-notice hidden">
+  <div id="deniedNotice" class="denied-notice hidden" role="alert">
     You're signed in, but this account doesn't have editor access.
   </div>
 
@@ -193,7 +193,7 @@
             <td>${escapeHtml(u.full_name)}</td>
             <td>${escapeHtml(u.email)}</td>
             <td>${roleBadge}</td>
-            <td>${action}<span class="action-status" id="status-${u.id}"></span></td>
+            <td>${action}<span class="action-status" id="status-${u.id}" aria-live="polite"></span></td>
           </tr>`;
       })
       .join('');

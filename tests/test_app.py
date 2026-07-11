@@ -103,6 +103,19 @@ def test_me_requires_auth(client):
     assert resp.status_code == 401
 
 
+def test_healthz_ok(client):
+    resp = client.get("/healthz")
+    assert resp.status_code == 200
+    assert resp.get_json()["ok"] is True
+
+
+def test_healthz_no_auth_required(client):
+    # Explicitly not gated behind login_required — monitoring tools hitting
+    # this shouldn't need credentials.
+    resp = client.get("/healthz")
+    assert resp.status_code != 401
+
+
 def test_logout_clears_session(client, valid_password):
     signup(client, email="logout1@example.com", password=valid_password)
     client.post("/api/logout")

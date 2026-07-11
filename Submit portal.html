@@ -264,8 +264,8 @@
 
   <h1 class="main-title">Manuscript Submission Portal</h1>
 
-  <p class="success-banner" id="successBanner">Thank you! Your manuscript has been received and is now under initial review.</p>
-  <p class="form-error-banner" id="formErrorBanner"></p>
+  <p class="success-banner" id="successBanner" role="status">Thank you! Your manuscript has been received and is now under initial review.</p>
+  <p class="form-error-banner" id="formErrorBanner" role="alert"></p>
 
   <form class="form-card" id="submissionPortalForm" action="/submit-article" method="POST" enctype="multipart/form-data">
     <input type="hidden" name="csrf_token" id="csrfTokenField" value="">
@@ -305,16 +305,16 @@
 
           <div class="form-group full-width">
             <label for="abstract">Abstract <span>*</span></label>
-            <textarea id="abstract" name="abstract" rows="6" required placeholder="Enter abstract of your manuscript" maxlength="3000" oninput="handleTextareaCounter()"></textarea>
+            <textarea id="abstract" name="abstract" rows="6" required placeholder="Enter abstract of your manuscript" maxlength="3000"></textarea>
             <div class="counter-text" id="counter">0 / 3000</div>
           </div>
 
           <div class="form-group full-width">
             <label>Anonymized Manuscript File <span>*</span></label>
-            <div class="file-picker-wrapper" onclick="document.getElementById('file-anon').click()">
+            <div class="file-picker-wrapper" id="picker-file-anon">
               <button type="button" class="file-trigger-btn">Choose File</button>
               <span class="file-status-label" id="label-file-anon">No file chosen</span>
-              <input type="file" id="file-anon" name="manuscript" style="display:none" required onchange="syncFileText('file-anon')">
+              <input type="file" id="file-anon" name="manuscript" style="display:none" required>
             </div>
             <div class="field-hint">Format Allowed: doc, docx, rtf (Max 5MB)</div>
           </div>
@@ -394,7 +394,7 @@
 
         <div id="coauthors-container"></div>
 
-        <button type="button" class="inline-action-btn" onclick="addCoAuthor()">+ Add Co-Author / Assistant</button>
+        <button type="button" class="inline-action-btn" id="add-coauthor-btn">+ Add Co-Author / Assistant</button>
       </div>
 
       <div class="full-width-footer-section">
@@ -403,27 +403,27 @@
         <div class="form-group-grid" style="margin-bottom: 30px;">
           <div class="form-group">
             <label>Graphical Abstract <span>*</span></label>
-            <div class="file-picker-wrapper" onclick="document.getElementById('file-graphical').click()">
+            <div class="file-picker-wrapper" id="picker-file-graphical">
               <button type="button" class="file-trigger-btn">Choose File</button>
               <span class="file-status-label" id="label-file-graphical">No file chosen</span>
-              <input type="file" id="file-graphical" name="graphical_abstract" style="display:none" required onchange="syncFileText('file-graphical')">
+              <input type="file" id="file-graphical" name="graphical_abstract" style="display:none" required>
             </div>
             <div class="field-hint">Format Allowed: pdf, png, tiff, jpeg (Max 5MB)</div>
           </div>
 
           <div class="form-group">
             <label>Cover Letter <span>*</span></label>
-            <div class="file-picker-wrapper" onclick="document.getElementById('file-cover').click()">
+            <div class="file-picker-wrapper" id="picker-file-cover">
               <button type="button" class="file-trigger-btn">Choose File</button>
               <span class="file-status-label" id="label-file-cover">No file chosen</span>
-              <input type="file" id="file-cover" name="cover_letter" style="display:none" required onchange="syncFileText('file-cover')">
+              <input type="file" id="file-cover" name="cover_letter" style="display:none" required>
             </div>
             <div class="field-hint">Format Allowed: doc, docx, rtf (Max 5MB)</div>
           </div>
 
           <div class="form-group">
             <label for="coi-status">Conflict of Interest Disclosure <span>*</span></label>
-            <select id="coi-status" name="coi-status" required onchange="toggleCoiPanel()">
+            <select id="coi-status" name="coi-status" required>
               <option value="no">No, there is no conflict of interest to declare</option>
               <option value="yes">Yes, I have a conflict of interest to declare</option>
             </select>
@@ -436,10 +436,10 @@
             <label>Supplementary Data File (Optional)</label>
             <div style="display: flex; gap: 10px; align-items: flex-start;">
               <input type="text" name="supplementary-description" style="flex: 2;" placeholder="Describe data (e.g., Dataset 1, Code Appendix)">
-              <div class="file-picker-wrapper" style="flex: 3;" onclick="document.getElementById('file-supplementary').click()">
+              <div class="file-picker-wrapper" style="flex: 3;" id="picker-file-supplementary">
                 <button type="button" class="file-trigger-btn">Choose File</button>
                 <span class="file-status-label" id="label-file-supplementary">No file chosen</span>
-                <input type="file" id="file-supplementary" name="supplementary" style="display:none" onchange="syncFileText('file-supplementary')">
+                <input type="file" id="file-supplementary" name="supplementary" style="display:none">
               </div>
             </div>
             <div class="field-hint">Max Size: 10MB (Datasets, CSVs, Scripts)</div>
@@ -465,9 +465,9 @@
     </div>
 
     <div class="form-footer-actions">
-      <button type="button" class="bottom-btn btn-gray" onclick="alert('Draft progress saved successfully.')">Save Draft</button>
+      <button type="button" class="bottom-btn btn-gray" id="save-draft-btn">Save Draft</button>
       <button type="submit" class="bottom-btn btn-gold">SUBMIT MANUSCRIPT</button>
-      <button type="button" class="bottom-btn btn-link-cancel" onclick="window.history.back()">Cancel</button>
+      <button type="button" class="bottom-btn btn-link-cancel" id="cancel-btn">Cancel</button>
     </div>
 
   </form>
@@ -477,7 +477,7 @@
   <div class="sub-section-box co-author-entry" style="animation: fadeIn 0.25s ease-out; position: relative;">
     <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
       <h3 style="margin: 0; font-size: 13.5px; color: var(--gold-accent); text-transform: uppercase;">Co-Author Information</h3>
-      <button type="button" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; font-weight: 600;" onclick="removeCoAuthor(this)">✕ Remove</button>
+      <button type="button" class="remove-coauthor-btn" style="background: none; border: none; color: #dc2626; cursor: pointer; font-size: 12px; font-weight: 600;">✕ Remove</button>
     </div>
     
     <div class="form-group-grid">
@@ -537,16 +537,31 @@
   function addCoAuthor() {
     const template = document.getElementById('coauthor-template');
     const clone = template.content.cloneNode(true);
+    clone.querySelector('.remove-coauthor-btn').addEventListener('click', removeCoAuthor);
     document.getElementById('coauthors-container').appendChild(clone);
   }
 
   // Remove corresponding author element frames safely
-  function removeCoAuthor(button) {
-    const entryCard = button.closest('.co-author-entry');
+  function removeCoAuthor(event) {
+    const entryCard = event.target.closest('.co-author-entry');
     if (entryCard) {
       entryCard.remove();
     }
   }
+
+  document.getElementById('abstract').addEventListener('input', handleTextareaCounter);
+  document.getElementById('picker-file-anon').addEventListener('click', () => document.getElementById('file-anon').click());
+  document.getElementById('file-anon').addEventListener('change', () => syncFileText('file-anon'));
+  document.getElementById('add-coauthor-btn').addEventListener('click', addCoAuthor);
+  document.getElementById('picker-file-graphical').addEventListener('click', () => document.getElementById('file-graphical').click());
+  document.getElementById('file-graphical').addEventListener('change', () => syncFileText('file-graphical'));
+  document.getElementById('picker-file-cover').addEventListener('click', () => document.getElementById('file-cover').click());
+  document.getElementById('file-cover').addEventListener('change', () => syncFileText('file-cover'));
+  document.getElementById('coi-status').addEventListener('change', toggleCoiPanel);
+  document.getElementById('picker-file-supplementary').addEventListener('click', () => document.getElementById('file-supplementary').click());
+  document.getElementById('file-supplementary').addEventListener('change', () => syncFileText('file-supplementary'));
+  document.getElementById('save-draft-btn').addEventListener('click', () => alert('Draft progress saved successfully.'));
+  document.getElementById('cancel-btn').addEventListener('click', () => window.history.back());
 
   // Require sign-in before letting anyone fill out the form. The real
   // enforcement is server-side on POST /submit-article — this is just so an

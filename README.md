@@ -55,13 +55,29 @@ Tests never touch `../jtead-instance/` — each test run gets its own
 in-memory database and a throwaway temp directory for uploads/logs (see
 `tests/conftest.py`).
 
+This also runs `tests/e2e/` — real end-to-end tests that drive an actual
+Chrome instance against a real (temporary) running server via Playwright,
+covering things `tests/test_app.py`'s API-level tests can't: real file
+pickers, real multi-page navigation, real DOM updates. First time only:
+```
+playwright install chromium
+```
+To run just the fast API-level suite (skip the browser tests):
+```
+pytest --ignore=tests/e2e
+```
+
 ## Promoting an editor
 
-There's no admin UI yet. After an account signs up:
+The first editor has to be promoted via the CLI:
 
 ```
 FLASK_APP=app:create_app() flask make-editor
 ```
+
+After that, any editor can promote or demote other accounts from
+`editor-users.html` (linked from the Editor Dashboard) — no need to go
+back to the CLI.
 
 ## More
 

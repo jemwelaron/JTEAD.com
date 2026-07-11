@@ -196,15 +196,15 @@
   <div class="form-section">
     <div id="login-form-pane">
       <h2>Author Sign In</h2>
-      <p class="form-error" id="login-error"></p>
+      <p class="form-error" id="login-error" role="alert"></p>
       <form id="login-form">
         <div class="form-group">
           <label for="login-email">Email Address</label>
-          <input type="email" id="login-email" name="email" required placeholder="author@institution.edu">
+          <input type="email" id="login-email" name="email" required placeholder="author@institution.edu" autocomplete="email">
         </div>
         <div class="form-group">
           <label for="login-password">Password</label>
-          <input type="password" id="login-password" name="password" required placeholder="••••••••">
+          <input type="password" id="login-password" name="password" required placeholder="••••••••" autocomplete="current-password">
         </div>
         <div class="form-group remember-row">
           <label class="remember-label"><input type="checkbox" id="login-remember" name="remember"> Remember me on this device</label>
@@ -220,29 +220,29 @@
       <h2>Create Author Profile</h2>
 
       <div class="sso-providers">
-        <button type="button" class="sso-btn orcid-btn" onclick="showComingSoon('ORCID sign-in')">
+        <button type="button" class="sso-btn orcid-btn" id="orcid-btn">
           🟩 Sign up with ORCID iD
         </button>
-        <button type="button" class="sso-btn" onclick="showComingSoon('Institutional email sign-in')">
+        <button type="button" class="sso-btn" id="institutional-btn">
           🏛️ Use Institutional Email (.edu)
         </button>
       </div>
 
       <div class="divider"><span>OR REGISTER WITH EMAIL</span></div>
 
-      <p class="form-error" id="signup-error"></p>
+      <p class="form-error" id="signup-error" role="alert"></p>
       <form id="signup-form">
         <div class="form-group">
           <label for="signup-name">Full Name</label>
-          <input type="text" id="signup-name" name="full_name" required placeholder="Dr. Jane Doe">
+          <input type="text" id="signup-name" name="full_name" required placeholder="Dr. Jane Doe" autocomplete="name">
         </div>
         <div class="form-group">
           <label for="signup-email">Email Address</label>
-          <input type="email" id="signup-email" name="email" required placeholder="name@university.edu">
+          <input type="email" id="signup-email" name="email" required placeholder="name@university.edu" autocomplete="email">
         </div>
         <div class="form-group">
           <label for="signup-password">Password</label>
-          <input type="password" id="signup-password" name="password" required minlength="10" placeholder="Create secure password">
+          <input type="password" id="signup-password" name="password" required minlength="10" placeholder="Create secure password" autocomplete="new-password">
           <p class="field-hint">At least 10 characters, with a letter and a number. Avoid common passwords or your name/email.</p>
         </div>
         <button type="submit" class="primary-action-btn">Complete Registration</button>
@@ -254,12 +254,12 @@
     <div id="sidebar-to-signup">
       <h3>New to JTEAD?</h3>
       <p>Register an account to track manuscript submissions and peer review progression status.</p>
-      <button class="switch-mode-btn" onclick="toggleFormState(true)">Sign Up</button>
+      <button class="switch-mode-btn" id="show-signup-btn">Sign Up</button>
     </div>
     <div id="sidebar-to-login" class="hidden">
       <h3>Already Registered?</h3>
       <p>Sign into your account dashboard to access your active submissions panel.</p>
-      <button class="switch-mode-btn" onclick="toggleFormState(false)">Log In</button>
+      <button class="switch-mode-btn" id="show-login-btn">Log In</button>
     </div>
   </div>
 
@@ -277,6 +277,11 @@
   function showComingSoon(feature) {
     alert(feature + ' is coming soon. Please use email sign-in for now.');
   }
+
+  document.getElementById('orcid-btn').addEventListener('click', () => showComingSoon('ORCID sign-in'));
+  document.getElementById('institutional-btn').addEventListener('click', () => showComingSoon('Institutional email sign-in'));
+  document.getElementById('show-signup-btn').addEventListener('click', () => toggleFormState(true));
+  document.getElementById('show-login-btn').addEventListener('click', () => toggleFormState(false));
 
   function showError(el, message) {
     el.textContent = message;

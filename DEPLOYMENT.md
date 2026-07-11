@@ -124,8 +124,15 @@ proxy is actually in place).
 
 - `Config.INSTANCE_DIR` (`jtead-instance/`, a sibling of the project
   directory) holds the SQLite database and uploaded manuscripts. Make sure
-  it's on persistent storage (not an ephemeral container filesystem) and is
-  backed up — there is currently no automated backup.
+  it's on persistent storage (not an ephemeral container filesystem).
+  `scripts/backup.sh` tars it up to a timestamped archive and prunes old
+  ones — not run automatically, add it to cron:
+  ```
+  0 3 * * * BACKUP_DIR=/var/backups/jtead /path/to/jtead-website/scripts/backup.sh
+  ```
+  If running on Postgres instead of SQLite, the script's copy of the DB
+  file is a no-op — use `pg_dump` (or your host's managed backups) for the
+  database, and this script only for `uploads/`.
 - SQLite is fine at this scale (a college journal) but has no built-in
   replication. If usage grows enough that concurrent-write contention
   becomes a problem, that's the point to migrate to Postgres. Nothing in
@@ -186,6 +193,7 @@ FLASK_APP=wsgi.py flask make-editor
 - [ ] `SESSION_COOKIE_SECURE=1`, served over real HTTPS
 - [ ] `RATELIMIT_STORAGE_URI` pointed at a shared backend if running >1 worker
 - [ ] gunicorn behind a reverse proxy, not exposed directly
-- [ ] `jtead-instance/` on persistent, backed-up storage
+- [ ] `jtead-instance/` on persistent storage, `scripts/backup.sh` in cron
 - [ ] `SMTP_HOST`/`SMTP_USERNAME`/`SMTP_PASSWORD`/`MAIL_FROM` set for real password-reset email delivery
 - [ ] At least one editor account promoted
+- [ ] `GET /healthz` wired into your uptime monitor / load balancer health check

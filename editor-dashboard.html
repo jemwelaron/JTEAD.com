@@ -91,7 +91,7 @@
   </div>
   <p class="page-intro" id="pageIntro">Signed in as <strong id="accountName">&hellip;</strong> (<a href="account-settings.html">Account Settings</a> &middot; <a href="editor-users.html">Manage Editors</a>). Review submissions and update their status below.</p>
 
-  <div id="deniedNotice" class="denied-notice hidden">
+  <div id="deniedNotice" class="denied-notice hidden" role="alert">
     You're signed in, but this account doesn't have editor access.
   </div>
 
@@ -286,7 +286,7 @@
               return `<option value="${escapeHtml(value)}"${selected}>${escapeHtml(STATUS_LABELS[value])}</option>`;
             })
             .join('');
-          statusCell = `<select data-submission-id="${s.id}">${options}</select><span class="save-status"></span>`;
+          statusCell = `<select data-submission-id="${s.id}">${options}</select><span class="save-status" aria-live="polite"></span>`;
         }
 
         return `

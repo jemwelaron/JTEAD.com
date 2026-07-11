@@ -90,17 +90,17 @@
 
   <div class="settings-card">
     <h3>Change Password</h3>
-    <p class="form-error" id="form-error"></p>
-    <p class="form-success" id="form-success">Password updated.</p>
+    <p class="form-error" id="form-error" role="alert"></p>
+    <p class="form-success" id="form-success" role="status">Password updated.</p>
 
     <form id="change-password-form">
       <div class="form-group">
         <label for="current-password">Current Password</label>
-        <input type="password" id="current-password" name="current_password" required placeholder="••••••••">
+        <input type="password" id="current-password" name="current_password" required placeholder="••••••••" autocomplete="current-password">
       </div>
       <div class="form-group">
         <label for="new-password">New Password</label>
-        <input type="password" id="new-password" name="new_password" required minlength="10" placeholder="Create secure password">
+        <input type="password" id="new-password" name="new_password" required minlength="10" placeholder="Create secure password" autocomplete="new-password">
         <p class="field-hint">At least 10 characters, with a letter and a number. Avoid common passwords or your name/email.</p>
       </div>
       <button type="submit" class="primary-action-btn">Update Password</button>
