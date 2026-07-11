@@ -13,8 +13,15 @@ document.addEventListener("DOMContentLoaded", () => {
       .then((me) => {
         if (!me) return;
 
-        const destination = me.is_editor ? "editor-dashboard.html" : "my-submissions.html";
-        const destinationLabel = me.is_editor ? "Editor Dashboard" : "My Submissions";
+        let destination = "my-submissions.html";
+        let destinationLabel = "My Submissions";
+        if (me.is_editor) {
+          destination = "editor-dashboard.html";
+          destinationLabel = "Editor Dashboard";
+        } else if (me.is_reviewer) {
+          destination = "reviewer-dashboard.html";
+          destinationLabel = "Reviewer Dashboard";
+        }
         accountLink.textContent = destinationLabel;
         accountLink.href = destination;
 

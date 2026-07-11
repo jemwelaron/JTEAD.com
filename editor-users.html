@@ -101,8 +101,8 @@
         <tr>
           <th>Name</th>
           <th>Email</th>
-          <th>Role</th>
-          <th>Action</th>
+          <th>Editor</th>
+          <th>Reviewer</th>
         </tr>
       </thead>
       <tbody id="usersBody"></tbody>
@@ -182,18 +182,18 @@
     body.innerHTML = users
       .map((u) => {
         const isSelf = u.id === currentUserId;
-        const roleBadge = u.is_editor
-          ? '<span class="role-badge">Editor</span>'
-          : '<span style="color:#667085;">Author</span>';
-        const action = u.is_editor
-          ? `<button class="role-btn" data-action="demote" data-user-id="${u.id}"${isSelf ? ' disabled title="You can\'t remove your own editor access."' : ''}>Remove editor access</button>`
+        const editorAction = u.is_editor
+          ? `<button class="role-btn" data-action="demote" data-user-id="${u.id}"${isSelf ? ' disabled title="You can\'t remove your own editor access."' : ''}>Remove</button>`
           : `<button class="role-btn" data-action="promote" data-user-id="${u.id}">Make editor</button>`;
+        const reviewerAction = u.is_reviewer
+          ? `<button class="role-btn" data-action="demote-reviewer" data-user-id="${u.id}">Remove</button>`
+          : `<button class="role-btn" data-action="promote-reviewer" data-user-id="${u.id}">Make reviewer</button>`;
         return `
           <tr>
             <td>${escapeHtml(u.full_name)}</td>
             <td>${escapeHtml(u.email)}</td>
-            <td>${roleBadge}</td>
-            <td>${action}<span class="action-status" id="status-${u.id}" aria-live="polite"></span></td>
+            <td>${editorAction}<span class="action-status" id="status-editor-${u.id}" aria-live="polite"></span></td>
+            <td>${reviewerAction}<span class="action-status" id="status-reviewer-${u.id}" aria-live="polite"></span></td>
           </tr>`;
       })
       .join('');
@@ -207,7 +207,8 @@
     const btn = event.target;
     const userId = btn.dataset.userId;
     const action = btn.dataset.action;
-    const statusEl = document.getElementById(`status-${userId}`);
+    const kind = action.includes('reviewer') ? 'reviewer' : 'editor';
+    const statusEl = document.getElementById(`status-${kind}-${userId}`);
     btn.disabled = true;
     statusEl.textContent = 'Saving…';
     statusEl.classList.remove('error');
@@ -237,8 +238,16 @@
     const me = await meRes.json();
 
     const accountLink = document.getElementById('accountLink');
-    accountLink.textContent = me.is_editor ? 'Editor Dashboard' : 'My Submissions';
-    accountLink.href = me.is_editor ? 'editor-dashboard.html' : 'my-submissions.html';
+    if (me.is_editor) {
+      accountLink.textContent = 'Editor Dashboard';
+      accountLink.href = 'editor-dashboard.html';
+    } else if (me.is_reviewer) {
+      accountLink.textContent = 'Reviewer Dashboard';
+      accountLink.href = 'reviewer-dashboard.html';
+    } else {
+      accountLink.textContent = 'My Submissions';
+      accountLink.href = 'my-submissions.html';
+    }
 
     if (!me.is_editor) {
       document.getElementById('deniedNotice').classList.remove('hidden');

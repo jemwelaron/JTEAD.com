@@ -16,6 +16,7 @@ class User(db.Model, UserMixin):
     email = db.Column(db.String(255), nullable=False, unique=True, index=True)
     password_hash = db.Column(db.String(255), nullable=False)
     is_editor = db.Column(db.Boolean, nullable=False, default=False)
+    is_reviewer = db.Column(db.Boolean, nullable=False, default=False)
     email_verified = db.Column(db.Boolean, nullable=False, default=False)
     # Bumped on every password change/reset. Embedded in the session cookie
     # (see get_id() below) so that changing your password invalidates any
@@ -79,6 +80,13 @@ class Submission(db.Model):
         order_by="StatusChange.changed_at",
         cascade="all, delete-orphan",
     )
+    review_assignments = db.relationship(
+        "ReviewAssignment",
+        backref="submission",
+        lazy=True,
+        order_by="ReviewAssignment.assigned_at",
+        cascade="all, delete-orphan",
+    )
 
 
 class CoAuthor(db.Model):
@@ -100,3 +108,27 @@ class StatusChange(db.Model):
     changed_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
     changed_by = db.relationship("User")
     changed_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+
+class ReviewAssignment(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    submission_id = db.Column(db.Integer, db.ForeignKey("submission.id"), nullable=False, index=True)
+    reviewer_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=False, index=True)
+    assigned_by_user_id = db.Column(db.Integer, db.ForeignKey("user.id"), nullable=True)
+    assigned_at = db.Column(db.DateTime, nullable=False, default=utcnow)
+
+    # Null until the reviewer submits — a review, once submitted, is
+    # immutable (see reviewer.py): if it needs to change, an editor removes
+    # the assignment and creates a fresh one, the same way a withdrawn
+    # submission isn't un-deleted, it's a new event.
+    recommendation = db.Column(db.String(30), nullable=True)
+    comments_to_author = db.Column(db.Text, nullable=True)
+    comments_to_editor = db.Column(db.Text, nullable=True)  # never shown to the author
+    submitted_at = db.Column(db.DateTime, nullable=True)
+
+    reviewer = db.relationship("User", foreign_keys=[reviewer_id])
+    assigned_by = db.relationship("User", foreign_keys=[assigned_by_user_id])
+
+    __table_args__ = (
+        db.UniqueConstraint("submission_id", "reviewer_id", name="uq_review_assignment_submission_reviewer"),
+    )

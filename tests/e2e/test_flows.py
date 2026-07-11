@@ -24,6 +24,15 @@ def _promote_to_editor(e2e_app, email):
         db.session.commit()
 
 
+def _promote_to_reviewer(e2e_app, email):
+    with e2e_app.app_context():
+        from models import User, db
+
+        user = User.query.filter_by(email=email).first()
+        user.is_reviewer = True
+        db.session.commit()
+
+
 def _make_upload_files(tmp_path):
     manuscript = tmp_path / "manuscript.docx"
     manuscript.write_bytes(b"PK\x03\x04" + b"manuscript body" + b"\x00" * 10)
@@ -185,3 +194,138 @@ def test_editor_dashboard_status_change_and_history(page, base_url, e2e_app, tmp
     history_row.wait_for()
     assert "Under Review" in history_row.inner_text()
     assert "by E2E Editor" in history_row.inner_text()
+
+
+def test_peer_review_flow(page, base_url, e2e_app, tmp_path):
+    author_email = "e2e-author3@example.com"
+    editor_email = "e2e-editor2@example.com"
+    reviewer_email = "e2e-reviewer@example.com"
+
+    # Author submits a manuscript.
+    page.goto(f"{base_url}/authentication.html")
+    page.click("#show-signup-btn")
+    page.fill("#signup-name", "E2E Author Three")
+    page.fill("#signup-email", author_email)
+    page.fill("#signup-password", "Harbor Whistle33")
+    page.click("#signup-form button[type=submit]")
+    page.wait_for_url(re.compile(r"my-submissions\.html"))
+    _verify_email(e2e_app, author_email)
+
+    page.goto(f"{base_url}/Submit%20portal.html")
+    page.select_option("#track", "fine-arts")
+    page.fill("#keywords", "peer, review, e2e")
+    page.fill("#title", "Peer Review E2E Manuscript")
+    page.fill("#abstract", "Manuscript used to test the full peer review flow end to end.")
+    page.fill("#ca-name", "E2E Author Three")
+    page.fill("#ca-phone", "09171234567")
+    page.fill("#ca-email", author_email)
+    page.fill("#ca-org", "University of San Agustin")
+    page.fill("#ca-city", "Iloilo City")
+    page.select_option("#ca-country", "PH")
+    page.select_option("#ca-identity", "author")
+    page.select_option("#ca-category", "student")
+    page.select_option("#coi-status", "no")
+    manuscript, graphical, cover = _make_upload_files(tmp_path)
+    page.set_input_files("#file-anon", str(manuscript))
+    page.set_input_files("#file-graphical", str(graphical))
+    page.set_input_files("#file-cover", str(cover))
+    page.check("#eth-1")
+    page.check("#eth-2")
+    page.check("#eth-3")
+    page.click("button:has-text('SUBMIT MANUSCRIPT')")
+    page.wait_for_url(re.compile(r"submitted=1"))
+
+    page.goto(f"{base_url}/my-submissions.html")
+    page.click("#accountLink")
+    page.wait_for_url(re.compile(r"index\.html"))
+
+    # Reviewer account (promoted directly, mirrors `flask make-reviewer`).
+    page.goto(f"{base_url}/authentication.html")
+    page.click("#show-signup-btn")
+    page.fill("#signup-name", "E2E Reviewer")
+    page.fill("#signup-email", reviewer_email)
+    page.fill("#signup-password", "Harbor Whistle33")
+    page.click("#signup-form button[type=submit]")
+    page.wait_for_url(re.compile(r"my-submissions\.html"))
+    _promote_to_reviewer(e2e_app, reviewer_email)
+    page.click("#accountLink")
+    page.wait_for_url(re.compile(r"index\.html"))
+
+    # Editor account, assigns the reviewer to the new submission.
+    page.goto(f"{base_url}/authentication.html")
+    page.click("#show-signup-btn")
+    page.fill("#signup-name", "E2E Editor Two")
+    page.fill("#signup-email", editor_email)
+    page.fill("#signup-password", "Harbor Whistle33")
+    page.click("#signup-form button[type=submit]")
+    page.wait_for_url(re.compile(r"my-submissions\.html"))
+    _promote_to_editor(e2e_app, editor_email)
+
+    page.goto(f"{base_url}/editor-dashboard.html")
+    page.wait_for_selector("text=Peer Review E2E Manuscript")
+    row = page.locator("tr", has_text="Peer Review E2E Manuscript")
+    row.locator("a.history-toggle").click()
+    details_row = page.locator("tr.history-row:not(.hidden)")
+    details_row.wait_for()
+
+    reviewers_section = details_row.locator(".reviewers-section")
+    reviewers_section.locator(".assign-reviewer-select").select_option(label="E2E Reviewer")
+    reviewers_section.locator(".assign-reviewer-btn").click()
+    reviewers_section.locator("text=Pending").wait_for()
+
+    page.goto(f"{base_url}/my-submissions.html")
+    page.click("#accountLink")
+    page.wait_for_url(re.compile(r"index\.html"))
+
+    # Reviewer sees the assignment and submits a review through the real form.
+    # (redirectAfterAuth() already sends them straight to their dashboard.)
+    page.goto(f"{base_url}/authentication.html")
+    page.fill("#login-email", reviewer_email)
+    page.fill("#login-password", "Harbor Whistle33")
+    page.click("#login-form button[type=submit]")
+    page.wait_for_url(re.compile(r"reviewer-dashboard\.html"))
+    page.wait_for_selector("text=Peer Review E2E Manuscript")
+    page.click("text=Peer Review E2E Manuscript")
+
+    page.wait_for_url(re.compile(r"review-form\.html"))
+    assert page.inner_text("#fAbstract") == "Manuscript used to test the full peer review flow end to end."
+    # Blind review: the reviewer-facing page never receives the author's
+    # identifying details at all (checked properly at the API level in
+    # tests/test_app.py::test_reviewer_assignment_detail_hides_identifying_fields
+    # — this just spot-checks the actual author's name/email never end up
+    # rendered anywhere on the real page).
+    page_text = page.content()
+    assert "E2E Author Three" not in page_text
+    assert author_email not in page_text
+
+    page.select_option("#recommendation", "minor-revisions")
+    page.fill("#comments-to-author", "Please expand the methodology section.")
+    page.fill("#comments-to-editor", "Otherwise solid, leaning toward acceptance.")
+    page.click("#submit-btn")
+
+    # Not "text=Review submitted" — that badge text exists in the static
+    # HTML from page load (just CSS-hidden via a class on its parent), so
+    # it can transiently match as "visible" during a fresh page load before
+    # the stylesheet has applied, well before the post-reload init() has
+    # actually fetched and rendered the submitted review. Waiting on text
+    # that only ever gets set by JS (never present in the raw markup) is
+    # immune to that race.
+    page.wait_for_selector("#submittedRecommendation:has-text('Minor Revisions')")
+    assert page.inner_text("#submittedRecommendation") == "Minor Revisions"
+
+    # Editor sees the submitted review, including the confidential comment.
+    page.click("#accountLink")
+    page.wait_for_url(re.compile(r"index\.html"))
+    page.goto(f"{base_url}/authentication.html")
+    page.fill("#login-email", editor_email)
+    page.fill("#login-password", "Harbor Whistle33")
+    page.click("#login-form button[type=submit]")
+    page.wait_for_url(re.compile(r"editor-dashboard\.html"))
+
+    page.wait_for_selector("text=Peer Review E2E Manuscript")
+    row = page.locator("tr", has_text="Peer Review E2E Manuscript")
+    row.locator("a.history-toggle").click()
+    details_row = page.locator("tr.history-row:not(.hidden)")
+    details_row.wait_for()
+    reviewers_section = details_row.locator(".reviewers-section")
+    assert "Submitted — Minor Revisions" in reviewers_section.inner_text()

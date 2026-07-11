@@ -12,3 +12,10 @@ const STATUS_LABELS = {
   "revision-requested": "Revision Requested",
   withdrawn: "Withdrawn",
 };
+
+const REVIEW_RECOMMENDATION_LABELS = {
+  accept: "Accept",
+  "minor-revisions": "Minor Revisions",
+  "major-revisions": "Major Revisions",
+  reject: "Reject",
+};

@@ -311,6 +311,21 @@
     return data;
   }
 
+  async function redirectAfterAuth() {
+    // My Submissions is the right landing page for a plain author, but an
+    // editor/reviewer signing in should land on their own dashboard instead
+    // of an empty "you haven't submitted anything" page.
+    const meRes = await fetch('/api/me');
+    const me = meRes.ok ? await meRes.json() : {};
+    if (me.is_editor) {
+      window.location.href = 'editor-dashboard.html';
+    } else if (me.is_reviewer) {
+      window.location.href = 'reviewer-dashboard.html';
+    } else {
+      window.location.href = 'my-submissions.html';
+    }
+  }
+
   function setBusy(form, busy) {
     const btn = form.querySelector('button[type="submit"]');
     if (btn) btn.disabled = busy;
@@ -328,7 +343,7 @@
         password: form.password.value,
         remember: form.remember.checked,
       });
-      window.location.href = 'my-submissions.html';
+      await redirectAfterAuth();
     } catch (err) {
       showError(errorEl, err.message);
       setBusy(form, false);
@@ -347,7 +362,7 @@
         email: form.email.value,
         password: form.password.value,
       });
-      window.location.href = 'my-submissions.html';
+      await redirectAfterAuth();
     } catch (err) {
       showError(errorEl, err.message);
       setBusy(form, false);

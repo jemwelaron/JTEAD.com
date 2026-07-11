@@ -1017,6 +1017,475 @@ def test_promote_user_requires_editor_role(client, valid_password):
     assert resp.status_code == 403
 
 
+# ---------- Peer review workflow ----------
+
+
+def _promote_to_reviewer(email):
+    from models import User, db
+
+    user = User.query.filter_by(email=email).first()
+    user.is_reviewer = True
+    db.session.commit()
+
+
+def _submit_and_get_id(client, valid_password, submission_form_data, email, title="Review Workflow Manuscript"):
+    from models import Submission
+
+    signup(client, email=email, password=valid_password)
+    submission_form_data["ca-email"] = email
+    submission_form_data["articleTitle"] = title
+    client.post("/submit-article", data=submission_form_data, content_type="multipart/form-data")
+    client.post("/api/logout")
+    return Submission.query.filter_by(title=title).first().id
+
+
+def test_list_reviewers_requires_editor_role(client, valid_password):
+    signup(client, email="notaneditor2@example.com", password=valid_password)
+    resp = client.get("/api/editor/reviewers")
+    assert resp.status_code == 403
+
+
+def test_list_reviewers_returns_only_reviewer_flagged_users(client, valid_password):
+    signup(client, email="plainauthor1@example.com", password=valid_password)
+    client.post("/api/logout")
+    signup(client, email="reviewerpool1@example.com", password=valid_password, full_name="Pool Reviewer")
+    _promote_to_reviewer("reviewerpool1@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor20@example.com", password=valid_password)
+    _promote_to_editor("editor20@example.com")
+
+    resp = client.get("/api/editor/reviewers")
+    assert resp.status_code == 200
+    emails = [r["email"] for r in resp.get_json()]
+    assert "reviewerpool1@example.com" in emails
+    assert "plainauthor1@example.com" not in emails
+
+
+def test_promote_reviewer_grants_access(client, valid_password):
+    from models import User, db
+
+    signup(client, email="soontobereviewer@example.com", password=valid_password)
+    client.post("/api/logout")
+    signup(client, email="editor21@example.com", password=valid_password)
+    _promote_to_editor("editor21@example.com")
+
+    target = User.query.filter_by(email="soontobereviewer@example.com").first()
+    resp = client.post(f"/api/editor/users/{target.id}/promote-reviewer")
+    assert resp.status_code == 200
+    assert db.session.get(User, target.id).is_reviewer is True
+
+
+def test_demote_reviewer_removes_access(client, valid_password):
+    from models import User, db
+
+    signup(client, email="soontobedemoted@example.com", password=valid_password)
+    _promote_to_reviewer("soontobedemoted@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor22@example.com", password=valid_password)
+    _promote_to_editor("editor22@example.com")
+
+    target = User.query.filter_by(email="soontobedemoted@example.com").first()
+    resp = client.post(f"/api/editor/users/{target.id}/demote-reviewer")
+    assert resp.status_code == 200
+    assert db.session.get(User, target.id).is_reviewer is False
+
+
+def test_assign_reviewer_success_and_sends_email(client, valid_password, submission_form_data, monkeypatch):
+    import editor as editor_module
+
+    sent = []
+    monkeypatch.setattr(
+        editor_module, "send_email", lambda **kwargs: sent.append(kwargs)
+    )
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor1@example.com")
+
+    signup(client, email="reviewer1@example.com", password=valid_password, full_name="Reviewer One")
+    _promote_to_reviewer("reviewer1@example.com")
+    client.post("/api/logout")
+
+    signup(client, email="editor23@example.com", password=valid_password)
+    _promote_to_editor("editor23@example.com")
+
+    from models import User
+
+    reviewer = User.query.filter_by(email="reviewer1@example.com").first()
+    resp = client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assert resp.status_code == 200
+    assert sent and sent[0]["to"] == "reviewer1@example.com"
+
+
+def test_assign_reviewer_requires_valid_reviewer(client, valid_password, submission_form_data):
+    from models import User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor2@example.com")
+
+    signup(client, email="notareviewer@example.com", password=valid_password)
+    client.post("/api/logout")
+    signup(client, email="editor24@example.com", password=valid_password)
+    _promote_to_editor("editor24@example.com")
+
+    not_a_reviewer = User.query.filter_by(email="notareviewer@example.com").first()
+    resp = client.post(
+        f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": not_a_reviewer.id}
+    )
+    assert resp.status_code == 400
+
+
+def test_assign_reviewer_duplicate_rejected(client, valid_password, submission_form_data):
+    from models import User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor3@example.com")
+
+    signup(client, email="reviewer2@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer2@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor25@example.com", password=valid_password)
+    _promote_to_editor("editor25@example.com")
+
+    reviewer = User.query.filter_by(email="reviewer2@example.com").first()
+    first = client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assert first.status_code == 200
+    second = client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assert second.status_code == 409
+
+
+def test_assign_reviewer_requires_editor_role(client, valid_password, submission_form_data):
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor4@example.com")
+    signup(client, email="plainuser2@example.com", password=valid_password)
+    resp = client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": 1})
+    assert resp.status_code == 403
+
+
+def test_unassign_reviewer_success(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor5@example.com")
+    signup(client, email="reviewer3@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer3@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor26@example.com", password=valid_password)
+    _promote_to_editor("editor26@example.com")
+
+    reviewer = User.query.filter_by(email="reviewer3@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+
+    resp = client.delete(f"/api/editor/submissions/{submission_id}/reviewers/{assignment.id}")
+    assert resp.status_code == 200
+    assert ReviewAssignment.query.filter_by(id=assignment.id).first() is None
+
+
+def test_unassign_reviewer_blocked_after_submission(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor6@example.com")
+    signup(client, email="reviewer4@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer4@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor27@example.com", password=valid_password)
+    _promote_to_editor("editor27@example.com")
+
+    reviewer = User.query.filter_by(email="reviewer4@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer4@example.com", "password": valid_password})
+    client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={"recommendation": "accept", "comments_to_author": "Looks good."},
+    )
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "editor27@example.com", "password": valid_password})
+    resp = client.delete(f"/api/editor/submissions/{submission_id}/reviewers/{assignment.id}")
+    assert resp.status_code == 400
+
+
+def test_reviewer_assignments_list_own_only(client, valid_password, submission_form_data):
+    from models import User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor7@example.com")
+    signup(client, email="reviewer5@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer5@example.com")
+    signup(client, email="reviewer6@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer6@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor28@example.com", password=valid_password)
+    _promote_to_editor("editor28@example.com")
+
+    reviewer5 = User.query.filter_by(email="reviewer5@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer5.id})
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer6@example.com", "password": valid_password})
+    resp = client.get("/api/reviewer/assignments")
+    assert resp.status_code == 200
+    assert resp.get_json() == []
+
+    client.post("/api/logout")
+    client.post("/api/login", json={"email": "reviewer5@example.com", "password": valid_password})
+    resp = client.get("/api/reviewer/assignments")
+    assert len(resp.get_json()) == 1
+
+
+def test_reviewer_assignment_detail_hides_identifying_fields(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor8@example.com")
+    signup(client, email="reviewer7@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer7@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor29@example.com", password=valid_password)
+    _promote_to_editor("editor29@example.com")
+    reviewer = User.query.filter_by(email="reviewer7@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer7@example.com", "password": valid_password})
+    resp = client.get(f"/api/reviewer/assignments/{assignment.id}")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert "abstract" in data
+    assert "corresponding_name" not in data
+    assert "corresponding_email" not in data
+    assert "co_authors" not in data
+
+
+def test_reviewer_cannot_view_others_assignment(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor9@example.com")
+    signup(client, email="reviewer8@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer8@example.com")
+    signup(client, email="reviewer9@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer9@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor30@example.com", password=valid_password)
+    _promote_to_editor("editor30@example.com")
+    reviewer8 = User.query.filter_by(email="reviewer8@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer8.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer9@example.com", "password": valid_password})
+    resp = client.get(f"/api/reviewer/assignments/{assignment.id}")
+    assert resp.status_code == 404
+
+
+def test_reviewer_file_download_excludes_cover_letter(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor10@example.com")
+    signup(client, email="reviewer10@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer10@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor31@example.com", password=valid_password)
+    _promote_to_editor("editor31@example.com")
+    reviewer = User.query.filter_by(email="reviewer10@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer10@example.com", "password": valid_password})
+    resp = client.get(f"/api/reviewer/assignments/{assignment.id}/files/cover_letter")
+    assert resp.status_code == 400
+
+    resp = client.get(f"/api/reviewer/assignments/{assignment.id}/files/manuscript")
+    assert resp.status_code == 200
+    assert resp.data.startswith(b"PK\x03\x04")
+
+
+def test_reviewer_file_download_own_assignment_only(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor11@example.com")
+    signup(client, email="reviewer11@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer11@example.com")
+    signup(client, email="reviewer12@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer12@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor32@example.com", password=valid_password)
+    _promote_to_editor("editor32@example.com")
+    reviewer11 = User.query.filter_by(email="reviewer11@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer11.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer12@example.com", "password": valid_password})
+    resp = client.get(f"/api/reviewer/assignments/{assignment.id}/files/manuscript")
+    assert resp.status_code == 404
+
+
+def test_submit_review_success_notifies_editors(client, valid_password, submission_form_data, monkeypatch):
+    import reviewer as reviewer_module
+    from models import ReviewAssignment, User
+
+    sent = []
+    monkeypatch.setattr(reviewer_module, "send_email", lambda **kwargs: sent.append(kwargs))
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor12@example.com")
+    signup(client, email="reviewer13@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer13@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor33@example.com", password=valid_password)
+    _promote_to_editor("editor33@example.com")
+    reviewer = User.query.filter_by(email="reviewer13@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer13@example.com", "password": valid_password})
+    resp = client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={
+            "recommendation": "minor-revisions",
+            "comments_to_author": "Please clarify section 3.",
+            "comments_to_editor": "Solid work overall.",
+        },
+    )
+    assert resp.status_code == 200
+    assert sent and sent[0]["to"] == "editor33@example.com"
+
+    updated = ReviewAssignment.query.filter_by(id=assignment.id).first()
+    assert updated.recommendation == "minor-revisions"
+    assert updated.submitted_at is not None
+
+
+def test_submit_review_requires_comments_to_author(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor13@example.com")
+    signup(client, email="reviewer14@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer14@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor34@example.com", password=valid_password)
+    _promote_to_editor("editor34@example.com")
+    reviewer = User.query.filter_by(email="reviewer14@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer14@example.com", "password": valid_password})
+    resp = client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={"recommendation": "accept", "comments_to_author": ""},
+    )
+    assert resp.status_code == 400
+
+
+def test_submit_review_invalid_recommendation_rejected(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor14@example.com")
+    signup(client, email="reviewer15@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer15@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor35@example.com", password=valid_password)
+    _promote_to_editor("editor35@example.com")
+    reviewer = User.query.filter_by(email="reviewer15@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer15@example.com", "password": valid_password})
+    resp = client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={"recommendation": "not-a-real-recommendation", "comments_to_author": "x"},
+    )
+    assert resp.status_code == 400
+
+
+def test_submit_review_cannot_resubmit(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor15@example.com")
+    signup(client, email="reviewer16@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer16@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor36@example.com", password=valid_password)
+    _promote_to_editor("editor36@example.com")
+    reviewer = User.query.filter_by(email="reviewer16@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer16@example.com", "password": valid_password})
+    first = client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={"recommendation": "accept", "comments_to_author": "Good."},
+    )
+    assert first.status_code == 200
+    second = client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={"recommendation": "reject", "comments_to_author": "Changed my mind."},
+    )
+    assert second.status_code == 400
+
+
+def test_submit_review_requires_reviewer_role(client, valid_password, submission_form_data):
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor16@example.com")
+    signup(client, email="notareviewer2@example.com", password=valid_password)
+    resp = client.post(
+        "/api/reviewer/assignments/1/submit",
+        json={"recommendation": "accept", "comments_to_author": "x"},
+    )
+    assert resp.status_code == 403
+
+
+def test_editor_list_reviews_includes_confidential_comments(client, valid_password, submission_form_data):
+    from models import ReviewAssignment, User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor17@example.com")
+    signup(client, email="reviewer17@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer17@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor37@example.com", password=valid_password)
+    _promote_to_editor("editor37@example.com")
+    reviewer = User.query.filter_by(email="reviewer17@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+    assignment = ReviewAssignment.query.filter_by(submission_id=submission_id).first()
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "reviewer17@example.com", "password": valid_password})
+    client.post(
+        f"/api/reviewer/assignments/{assignment.id}/submit",
+        json={
+            "recommendation": "reject",
+            "comments_to_author": "Not ready for publication.",
+            "comments_to_editor": "Suspect duplicate submission elsewhere.",
+        },
+    )
+    client.post("/api/logout")
+
+    client.post("/api/login", json={"email": "editor37@example.com", "password": valid_password})
+    resp = client.get(f"/api/editor/submissions/{submission_id}/reviews")
+    assert resp.status_code == 200
+    data = resp.get_json()
+    assert data[0]["comments_to_editor"] == "Suspect duplicate submission elsewhere."
+    assert data[0]["recommendation"] == "reject"
+
+
+def test_editor_list_submissions_includes_review_counts(client, valid_password, submission_form_data):
+    from models import User
+
+    submission_id = _submit_and_get_id(client, valid_password, submission_form_data, "assignauthor18@example.com")
+    signup(client, email="reviewer18@example.com", password=valid_password)
+    _promote_to_reviewer("reviewer18@example.com")
+    client.post("/api/logout")
+    signup(client, email="editor38@example.com", password=valid_password)
+    _promote_to_editor("editor38@example.com")
+    reviewer = User.query.filter_by(email="reviewer18@example.com").first()
+    client.post(f"/api/editor/submissions/{submission_id}/reviewers", json={"reviewer_id": reviewer.id})
+
+    resp = client.get("/api/editor/submissions")
+    match = next(s for s in resp.get_json() if s["id"] == submission_id)
+    assert match["reviewers_assigned"] == 1
+    assert match["reviews_submitted"] == 0
+
+
 # ---------- Security logging ----------
 
 

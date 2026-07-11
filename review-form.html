@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Submit Review — JTEAD</title>
+<link rel="icon" type="image/png" href="COT LOGO.png" />
+<link rel="stylesheet" href="styles.css" />
+<style>
+  .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px 32px; margin-top: 20px; }
+  .detail-field { font-size: 14px; }
+  .detail-field h4 { margin: 0 0 4px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
+  .detail-field p { margin: 0; }
+  .detail-full { grid-column: 1 / -1; }
+  .file-list a { display: inline-block; margin-right: 16px; }
+  .review-form-card { max-width: 640px; margin-top: 28px; padding-top: 20px; border-top: 1px solid #e2e8f0; }
+  .form-group { margin-bottom: 18px; }
+  .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
+  .form-group select, .form-group textarea { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 4px; box-sizing: border-box; font-size: 14px; font-family: inherit; }
+  .form-group textarea { min-height: 120px; resize: vertical; }
+  .field-hint { font-size: 12px; color: #777; margin: 6px 0 0; line-height: 1.4; }
+  .primary-action-btn { background: #aa844c; color: #fff; border: none; padding: 12px 20px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 15px; }
+  .primary-action-btn:hover { background: #967340; }
+  .primary-action-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
+  .form-error { display: none; background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 10px 12px; font-size: 13px; margin: 0 0 16px; }
+  .form-error.visible { display: block; }
+  .already-submitted-badge { display: inline-block; background: #eaf6ec; color: #1e6b34; border: 1px solid #c2e5c8; border-radius: 4px; padding: 6px 12px; font-size: 13px; margin-top: 16px; }
+  .not-found { margin-top: 24px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="container">
+      <a href="https://usa.edu.ph" target="_blank" rel="noopener">University of San Agustin</a>
+      <a href="#" id="accountLink">My Account</a>
+      <a href="#footerContact">Contact Us</a>
+    </div>
+  </div>
+
+  <div class="site-header">
+    <div class="container">
+      <div class="brand">
+        <img src="COT LOGO.png" class="logo" alt="JTEAD Logo">
+        <div class="brand-text">
+          <h1>JOURNAL OF TECHNOLOGY, ENGINEERING,<br />ARCHITECTURE AND DESIGN</h1>
+          <p>A peer reviewed journal of the<br />College of Technology, University of San Agustin</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <a class="btn-submit" href="Submit%20portal.html">Submit Manuscript
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+        </a>
+        <div class="search-wrap">
+          <label class="search-box">
+            <input type="text" id="siteSearchInput" placeholder="Search Article..." aria-label="Search Article" autocomplete="off" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          </label>
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="main-nav">
+    <div class="container">
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <ul class="nav-list">
+        <li><a href="index.html">HOME</a></li>
+        <li><a href="aims-and-scope.html">AIMS AND SCOPE</a></li>
+        <li><a href="author-guidelines.html">FOR AUTHORS</a></li>
+        <li><a href="current.html">CURRENT</a></li>
+        <li><a href="archives.html">ARCHIVES</a></li>
+        <li><a href="editorial-board.html">EDITORIAL BOARD</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main class="container copyright-page">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="index.html">Home</a>
+    <span class="sep">&rsaquo;</span>
+    <a href="reviewer-dashboard.html">Reviewer Dashboard</a>
+    <span class="sep">&rsaquo;</span>
+    <span class="current current-gold">Submit Review</span>
+  </nav>
+
+  <div class="announce-header" style="align-items:flex-start; margin-bottom: 10px;">
+    <div>
+      <h2 class="page-title" id="pageTitle">&hellip;</h2>
+      <div class="title-underline"></div>
+    </div>
+  </div>
+
+  <div id="notFound" class="not-found hidden">
+    <p>That review assignment couldn't be found, or doesn't belong to your account.</p>
+    <a href="reviewer-dashboard.html">Back to Reviewer Dashboard</a>
+  </div>
+
+  <div id="detailWrap" class="hidden">
+    <div class="detail-grid">
+      <div class="detail-field"><h4>Track</h4><p id="fTrack"></p></div>
+      <div class="detail-field"><h4>Keywords</h4><p id="fKeywords"></p></div>
+      <div class="detail-field detail-full"><h4>Abstract</h4><p id="fAbstract"></p></div>
+      <div class="detail-field detail-full">
+        <h4>Files</h4>
+        <p class="file-list" id="fFiles"></p>
+      </div>
+    </div>
+
+    <div class="review-form-card">
+      <h3>Your Review</h3>
+      <p class="form-error" id="form-error" role="alert"></p>
+
+      <form id="review-form">
+        <div class="form-group">
+          <label for="recommendation">Recommendation <span>*</span></label>
+          <select id="recommendation" name="recommendation" required>
+            <option value="">Select a recommendation</option>
+            <option value="accept">Accept</option>
+            <option value="minor-revisions">Minor Revisions</option>
+            <option value="major-revisions">Major Revisions</option>
+            <option value="reject">Reject</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="comments-to-author">Comments to Author <span>*</span></label>
+          <textarea id="comments-to-author" name="comments_to_author" required placeholder="Feedback the author will see"></textarea>
+          <p class="field-hint">Visible to the corresponding author once the editor shares your feedback.</p>
+        </div>
+        <div class="form-group">
+          <label for="comments-to-editor">Confidential Comments to Editor</label>
+          <textarea id="comments-to-editor" name="comments_to_editor" placeholder="Optional — never shown to the author"></textarea>
+          <p class="field-hint">Only the editorial team sees this.</p>
+        </div>
+        <button type="submit" class="primary-action-btn" id="submit-btn">Submit Review</button>
+      </form>
+
+      <div id="already-submitted" class="hidden">
+        <span class="already-submitted-badge">Review submitted</span>
+        <div class="detail-grid" style="margin-top: 16px;">
+          <div class="detail-field"><h4>Recommendation</h4><p id="submittedRecommendation"></p></div>
+          <div class="detail-field detail-full"><h4>Comments to Author</h4><p id="submittedCommentsAuthor"></p></div>
+          <div class="detail-field detail-full"><h4>Confidential Comments to Editor</h4><p id="submittedCommentsEditor"></p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <h5>About JTEAD</h5>
+      <p>The official research journal of the College of Technology, University of San Agustin, dedicated to advancing knowledge in technology, engineering, architecture, and design</p>
+    </div>
+    <div>
+      <h5>Quick Links</h5>
+      <ul>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="current.html">Current issue</a></li>
+        <li><a href="archives.html">Archives</a></li>
+        <li><a href="Submit%20portal.html">Submit manuscript</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>For Authors</h5>
+      <ul>
+        <li><a href="author-guidelines.html">Author Guidelines</a></li>
+        <li><a href="author-guidelines.html#submission-process">Submission Process</a></li>
+        <li><a href="review-process.html">Review Process</a></li>
+        <li><a href="copyright-policy.html">Copyright Policy</a></li>
+      </ul>
+    </div>
+    <div id="footerContact">
+      <h5>Contact</h5>
+      <p>College of Technology<br />University of San Agustin<br />Iloilo City, Philippines<br />cea@usa.edu.ph</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; 2025 Journal of Technology, Engineering, Architecture and Design, All rights reserved</p>
+    <div class="legal-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-use.html">Terms of use</a>
+    </div>
+  </div>
+</footer>
+
+<script src="issues-data.js"></script>
+<script src="status-labels.js"></script>
+<script src="script.js"></script>
+<script>
+  function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
+  }
+
+  async function getCsrfToken() {
+    const res = await fetch('/api/csrf-token');
+    const data = await res.json();
+    return data.csrf_token;
+  }
+
+  function showError(el, message) {
+    el.textContent = message;
+    el.classList.add('visible');
+  }
+
+  function clearError(el) {
+    el.textContent = '';
+    el.classList.remove('visible');
+  }
+
+  (async function init() {
+    const meRes = await fetch('/api/me');
+    if (!meRes.ok) {
+      window.location.href = 'authentication.html';
+      return;
+    }
+
+    const accountLink = document.getElementById('accountLink');
+    accountLink.textContent = 'Log Out';
+    accountLink.href = '#';
+    accountLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const csrfToken = await getCsrfToken();
+      await fetch('/api/logout', { method: 'POST', headers: { 'X-CSRFToken': csrfToken } });
+      window.location.href = 'index.html';
+    });
+
+    const assignmentId = new URLSearchParams(window.location.search).get('assignment');
+    const res = await fetch(`/api/reviewer/assignments/${encodeURIComponent(assignmentId)}`);
+    if (!res.ok) {
+      document.getElementById('pageTitle').textContent = 'Submit Review';
+      document.getElementById('notFound').classList.remove('hidden');
+      return;
+    }
+    const a = await res.json();
+
+    document.getElementById('pageTitle').textContent = a.title;
+    document.title = `Review: ${a.title} — JTEAD`;
+    document.getElementById('detailWrap').classList.remove('hidden');
+
+    document.getElementById('fTrack').textContent = a.track;
+    document.getElementById('fKeywords').textContent = a.keywords;
+    document.getElementById('fAbstract').textContent = a.abstract;
+
+    const fileFields = [
+      ['manuscript', 'Manuscript'],
+      ['graphical_abstract', 'Graphical Abstract'],
+      ...(a.has_supplementary ? [['supplementary', 'Supplementary']] : []),
+    ];
+    document.getElementById('fFiles').innerHTML = fileFields
+      .map(([field, label]) => `<a href="/api/reviewer/assignments/${a.id}/files/${field}">${escapeHtml(label)}</a>`)
+      .join('');
+
+    if (a.submitted_at) {
+      document.getElementById('review-form').classList.add('hidden');
+      document.getElementById('already-submitted').classList.remove('hidden');
+      document.getElementById('submittedRecommendation').textContent =
+        REVIEW_RECOMMENDATION_LABELS[a.recommendation] || a.recommendation;
+      document.getElementById('submittedCommentsAuthor').textContent = a.comments_to_author;
+      document.getElementById('submittedCommentsEditor').textContent = a.comments_to_editor || '(none)';
+      return;
+    }
+
+    document.getElementById('review-form').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const form = event.target;
+      const errorEl = document.getElementById('form-error');
+      clearError(errorEl);
+
+      const btn = document.getElementById('submit-btn');
+      btn.disabled = true;
+      try {
+        const csrfToken = await getCsrfToken();
+        const submitRes = await fetch(`/api/reviewer/assignments/${a.id}/submit`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+          body: JSON.stringify({
+            recommendation: form.recommendation.value,
+            comments_to_author: form.comments_to_author.value,
+            comments_to_editor: form.comments_to_editor.value,
+          }),
+        });
+        const data = await submitRes.json().catch(() => ({}));
+        if (!submitRes.ok) throw new Error(data.error || 'Could not submit your review.');
+        window.location.reload();
+      } catch (err) {
+        showError(errorEl, err.message);
+        btn.disabled = false;
+      }
+    });
+  })();
+</script>
+</body>
+</html>

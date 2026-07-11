@@ -22,6 +22,7 @@ from werkzeug.utils import secure_filename
 
 from config import Config
 from editor import editor_bp
+from reviewer import reviewer_bp
 from extensions import csrf, limiter, login_manager, migrate
 from file_signatures import file_content_matches_extension
 from mailer import send_email
@@ -208,6 +209,7 @@ def me():
             "full_name": current_user.full_name,
             "email": current_user.email,
             "is_editor": current_user.is_editor,
+            "is_reviewer": current_user.is_reviewer,
             "email_verified": current_user.email_verified,
         }
     )
@@ -732,6 +734,20 @@ def register_cli_commands(app):
         db.session.commit()
         click.echo(f"{user.email} is now an editor.")
 
+    @app.cli.command("make-reviewer")
+    def make_reviewer():
+        """Promote a user to reviewer by email: flask make-reviewer"""
+        import click
+
+        email = click.prompt("Email address to promote to reviewer")
+        user = User.query.filter_by(email=email.strip().lower()).first()
+        if not user:
+            click.echo(f"No account found for {email}.")
+            return
+        user.is_reviewer = True
+        db.session.commit()
+        click.echo(f"{user.email} is now a reviewer.")
+
 
 def create_app(config_object=Config):
     app = Flask(__name__, static_folder=".", static_url_path="")
@@ -748,6 +764,7 @@ def create_app(config_object=Config):
 
     app.register_blueprint(main_bp)
     app.register_blueprint(editor_bp)
+    app.register_blueprint(reviewer_bp)
 
     app.after_request(set_security_headers)
 

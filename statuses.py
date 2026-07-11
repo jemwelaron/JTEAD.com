@@ -22,3 +22,11 @@ EDITOR_SETTABLE_STATUSES = {"submitted", "under-review", "revision-requested", "
 # final decision (accepted/rejected) or is already withdrawn, withdrawing
 # no longer makes sense.
 WITHDRAWABLE_STATUSES = {"submitted", "under-review", "revision-requested"}
+
+REVIEW_RECOMMENDATION_LABELS = {
+    "accept": "Accept",
+    "minor-revisions": "Minor Revisions",
+    "major-revisions": "Major Revisions",
+    "reject": "Reject",
+}
+VALID_REVIEW_RECOMMENDATIONS = set(REVIEW_RECOMMENDATION_LABELS)

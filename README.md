@@ -67,7 +67,7 @@ To run just the fast API-level suite (skip the browser tests):
 pytest --ignore=tests/e2e
 ```
 
-## Promoting an editor
+## Promoting editors and reviewers
 
 The first editor has to be promoted via the CLI:
 
@@ -75,9 +75,22 @@ The first editor has to be promoted via the CLI:
 FLASK_APP=app:create_app() flask make-editor
 ```
 
-After that, any editor can promote or demote other accounts from
-`editor-users.html` (linked from the Editor Dashboard) — no need to go
-back to the CLI.
+After that, any editor can promote or demote other accounts as editors or
+reviewers from `editor-users.html` (linked from the Editor Dashboard) — no
+need to go back to the CLI. `flask make-reviewer` also exists for scripting/
+bootstrapping, same pattern as `make-editor`.
+
+## Peer review workflow
+
+Editors assign one or more reviewers to a submission from the Editor
+Dashboard's expandable row (search/assign, remove before a review is
+submitted). Reviewers see an anonymized view — never the corresponding
+author's name, email, or the cover letter, only the manuscript, graphical
+abstract, and any supplementary file — from `reviewer-dashboard.html`, and
+submit a recommendation plus comments (a public one to the author, an
+optional confidential one visible only to editors) via `review-form.html`.
+A review is immutable once submitted; if it needs to change, an editor
+removes the assignment and creates a fresh one.
 
 ## More
 

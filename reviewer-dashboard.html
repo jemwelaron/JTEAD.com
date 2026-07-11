@@ -3,22 +3,17 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Account Settings — JTEAD</title>
+<title>Reviewer Dashboard — JTEAD</title>
+<meta name="description" content="Manuscripts assigned to you for peer review." />
 <link rel="icon" type="image/png" href="COT LOGO.png" />
 <link rel="stylesheet" href="styles.css" />
 <style>
-  .settings-card { max-width: 420px; margin-top: 24px; }
-  .form-group { margin-bottom: 18px; }
-  .form-group label { display: block; margin-bottom: 6px; font-weight: 600; font-size: 14px; }
-  .form-group input { width: 100%; padding: 10px 12px; border: 1px solid #e2e8f0; border-radius: 4px; box-sizing: border-box; font-size: 14px; }
-  .field-hint { font-size: 12px; color: #777; margin: 6px 0 0; line-height: 1.4; }
-  .primary-action-btn { background: #aa844c; color: #fff; border: none; padding: 12px 20px; border-radius: 4px; font-weight: 600; cursor: pointer; font-size: 15px; }
-  .primary-action-btn:hover { background: #967340; }
-  .primary-action-btn[disabled] { opacity: 0.6; cursor: not-allowed; }
-  .form-error { display: none; background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 10px 12px; font-size: 13px; margin: 0 0 16px; }
-  .form-error.visible { display: block; }
-  .form-success { display: none; background: #eaf6ec; color: #1e6b34; border: 1px solid #c2e5c8; border-radius: 4px; padding: 10px 12px; font-size: 13px; margin: 0 0 16px; }
-  .form-success.visible { display: block; }
+  .editor-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  .editor-table th, .editor-table td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; }
+  .editor-table th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
+  .status-pending { color: #aa844c; font-weight: 600; }
+  .status-submitted { color: #1e6b34; font-weight: 600; }
+  .denied-notice { background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 14px 16px; margin-top: 20px; }
 </style>
 </head>
 <body>
@@ -75,36 +70,33 @@
   <nav class="breadcrumb" aria-label="Breadcrumb">
     <a href="index.html">Home</a>
     <span class="sep">&rsaquo;</span>
-    <a href="my-submissions.html">My Submissions</a>
-    <span class="sep">&rsaquo;</span>
-    <span class="current current-gold">Account Settings</span>
+    <span class="current current-gold">Reviewer Dashboard</span>
   </nav>
 
   <div class="announce-header" style="align-items:flex-start; margin-bottom: 10px;">
     <div>
-      <h2 class="page-title">Account Settings</h2>
+      <h2 class="page-title">Reviewer Dashboard</h2>
       <div class="title-underline"></div>
     </div>
   </div>
-  <p class="page-intro">Signed in as <strong id="accountName">&hellip;</strong> (<span id="accountEmail"></span>).</p>
+  <p class="page-intro" id="pageIntro">Signed in as <strong id="accountName">&hellip;</strong> (<a href="account-settings.html">Account Settings</a>). Manuscripts assigned to you for review are listed below — reviews are anonymized to the corresponding author's details.</p>
 
-  <div class="settings-card">
-    <h3>Change Password</h3>
-    <p class="form-error" id="form-error" role="alert"></p>
-    <p class="form-success" id="form-success" role="status">Password updated.</p>
+  <div id="deniedNotice" class="denied-notice hidden" role="alert">
+    You're signed in, but this account doesn't have reviewer access.
+  </div>
 
-    <form id="change-password-form">
-      <div class="form-group">
-        <label for="current-password">Current Password</label>
-        <input type="password" id="current-password" name="current_password" required placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <div class="form-group">
-        <label for="new-password">New Password</label>
-        <input type="password" id="new-password" name="new_password" required minlength="10" placeholder="Create secure password" autocomplete="new-password">
-        <p class="field-hint">At least 10 characters, with a letter and a number. Avoid common passwords or your name/email.</p>
-      </div>
-      <button type="submit" class="primary-action-btn">Update Password</button>
-    </form>
+  <div id="tableWrap" class="hidden">
+    <table class="editor-table">
+      <thead>
+        <tr>
+          <th>Title</th>
+          <th>Track</th>
+          <th>Assigned</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody id="assignmentsBody"></tbody>
+    </table>
   </div>
 </main>
 
@@ -149,20 +141,10 @@
 <script src="issues-data.js"></script>
 <script src="script.js"></script>
 <script>
-  function showError(el, message) {
-    el.textContent = message;
-    el.classList.add('visible');
-  }
-
-  function clearError(el) {
-    el.textContent = '';
-    el.classList.remove('visible');
-  }
-
-  async function getCsrfToken() {
-    const res = await fetch('/api/csrf-token');
-    const data = await res.json();
-    return data.csrf_token;
+  function escapeHtml(value) {
+    const div = document.createElement('div');
+    div.textContent = value == null ? '' : String(value);
+    return div.innerHTML;
   }
 
   (async function init() {
@@ -173,52 +155,56 @@
     }
     const me = await meRes.json();
     document.getElementById('accountName').textContent = me.full_name;
-    document.getElementById('accountEmail').textContent = me.email;
 
     const accountLink = document.getElementById('accountLink');
-    let destination = 'my-submissions.html';
-    let destinationLabel = 'My Submissions';
-    if (me.is_editor) {
-      destination = 'editor-dashboard.html';
-      destinationLabel = 'Editor Dashboard';
-    } else if (me.is_reviewer) {
-      destination = 'reviewer-dashboard.html';
-      destinationLabel = 'Reviewer Dashboard';
+    accountLink.textContent = 'Log Out';
+    accountLink.href = '#';
+    accountLink.addEventListener('click', async (e) => {
+      e.preventDefault();
+      const csrfRes = await fetch('/api/csrf-token');
+      const { csrf_token } = await csrfRes.json();
+      await fetch('/api/logout', { method: 'POST', headers: { 'X-CSRFToken': csrf_token } });
+      window.location.href = 'index.html';
+    });
+
+    if (!me.is_reviewer) {
+      document.getElementById('deniedNotice').classList.remove('hidden');
+      return;
     }
-    accountLink.textContent = destinationLabel;
-    accountLink.href = destination;
+
+    const res = await fetch('/api/reviewer/assignments');
+    if (!res.ok) {
+      document.getElementById('deniedNotice').classList.remove('hidden');
+      return;
+    }
+    const assignments = await res.json();
+
+    document.getElementById('tableWrap').classList.remove('hidden');
+    const body = document.getElementById('assignmentsBody');
+
+    if (!assignments.length) {
+      body.innerHTML = '<tr><td colspan="4">No manuscripts assigned to you yet.</td></tr>';
+      return;
+    }
+
+    body.innerHTML = assignments
+      .map((a) => {
+        const date = new Date(a.assigned_at).toLocaleDateString(undefined, {
+          year: 'numeric', month: 'long', day: 'numeric',
+        });
+        const status = a.submitted_at
+          ? '<span class="status-submitted">Submitted</span>'
+          : '<span class="status-pending">Pending</span>';
+        return `
+          <tr>
+            <td><a href="review-form.html?assignment=${a.id}">${escapeHtml(a.title)}</a></td>
+            <td>${escapeHtml(a.track)}</td>
+            <td>${date}</td>
+            <td>${status}</td>
+          </tr>`;
+      })
+      .join('');
   })();
-
-  document.getElementById('change-password-form').addEventListener('submit', async (event) => {
-    event.preventDefault();
-    const form = event.target;
-    const errorEl = document.getElementById('form-error');
-    const successEl = document.getElementById('form-success');
-    clearError(errorEl);
-    successEl.classList.remove('visible');
-
-    const btn = form.querySelector('button[type="submit"]');
-    btn.disabled = true;
-    try {
-      const csrfToken = await getCsrfToken();
-      const res = await fetch('/api/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
-        body: JSON.stringify({
-          current_password: form.current_password.value,
-          new_password: form.new_password.value,
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(data.error || 'Something went wrong. Please try again.');
-      successEl.classList.add('visible');
-      form.reset();
-    } catch (err) {
-      showError(errorEl, err.message);
-    } finally {
-      btn.disabled = false;
-    }
-  });
 </script>
 </body>
 </html>

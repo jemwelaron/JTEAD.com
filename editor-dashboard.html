@@ -17,6 +17,17 @@
   .history-row .history-list li { padding: 4px 0; }
   .history-row .history-date { color: #667085; margin-left: 8px; }
   .history-row .history-by { color: #667085; margin-left: 8px; font-style: italic; }
+  .details-section { margin-bottom: 18px; }
+  .details-section:last-child { margin-bottom: 0; }
+  .details-section h4 { margin: 0 0 8px; font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
+  .reviewer-list { list-style: none; padding: 0; margin: 0; font-size: 13px; }
+  .reviewer-list li { padding: 4px 0; display: flex; align-items: center; gap: 10px; }
+  .reviewer-empty { color: #667085; }
+  .reviewer-status-pending { color: #aa844c; }
+  .reviewer-status-submitted { color: #1e6b34; }
+  .reviewer-remove-btn { border: none; background: none; color: #b3261e; cursor: pointer; font-size: 12px; padding: 0; }
+  .assign-reviewer-row { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
+  .assign-reviewer-select { padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 13px; }
   .editor-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
   .editor-table th, .editor-table td { text-align: left; padding: 12px 10px; border-bottom: 1px solid #e2e8f0; font-size: 14px; vertical-align: top; }
   .editor-table th { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: #667085; }
@@ -112,7 +123,8 @@
           <th>Files</th>
           <th>Submitted</th>
           <th>Status</th>
-          <th>History</th>
+          <th>Reviewers</th>
+          <th>Details</th>
         </tr>
       </thead>
       <tbody id="submissionsBody"></tbody>
@@ -204,6 +216,92 @@
     }
   }
 
+  let allReviewers = [];
+
+  function renderReviewList(list, reviews) {
+    if (!reviews.length) {
+      list.innerHTML = '<li class="reviewer-empty">No reviewers assigned yet.</li>';
+      return;
+    }
+    list.innerHTML = reviews
+      .map((r) => {
+        const recommendation = r.recommendation
+          ? REVIEW_RECOMMENDATION_LABELS[r.recommendation] || r.recommendation
+          : null;
+        const status = r.submitted_at
+          ? `<span class="reviewer-status-submitted">Submitted — ${escapeHtml(recommendation)}</span>`
+          : '<span class="reviewer-status-pending">Pending</span>';
+        const removeBtn = r.submitted_at
+          ? ''
+          : `<button type="button" class="reviewer-remove-btn" data-assignment-id="${r.id}">Remove</button>`;
+        return `<li><strong>${escapeHtml(r.reviewer_name)}</strong> ${status} ${removeBtn}</li>`;
+      })
+      .join('');
+  }
+
+  async function loadReviewersPanel(row, submissionId) {
+    const section = row.querySelector('.reviewers-section');
+    const list = section.querySelector('.reviewer-list');
+    const select = section.querySelector('.assign-reviewer-select');
+    const statusEl = section.querySelector('.reviewer-assign-status');
+
+    const res = await fetch(`/api/editor/submissions/${submissionId}/reviews`);
+    const reviews = res.ok ? await res.json() : [];
+    renderReviewList(list, reviews);
+
+    const assignedIds = new Set(reviews.map((r) => r.reviewer_email));
+    const available = allReviewers.filter((r) => !assignedIds.has(r.email));
+    select.innerHTML = available.length
+      ? available.map((r) => `<option value="${r.id}">${escapeHtml(r.full_name)}</option>`).join('')
+      : '<option value="">No available reviewers</option>';
+    section.querySelector('.assign-reviewer-btn').disabled = !available.length;
+
+    section.querySelectorAll('.reviewer-remove-btn').forEach((btn) => {
+      btn.addEventListener('click', async () => {
+        btn.disabled = true;
+        statusEl.textContent = 'Removing…';
+        statusEl.classList.remove('error');
+        try {
+          const csrfToken = await getCsrfToken();
+          const delRes = await fetch(
+            `/api/editor/submissions/${submissionId}/reviewers/${btn.dataset.assignmentId}`,
+            { method: 'DELETE', headers: { 'X-CSRFToken': csrfToken } }
+          );
+          const data = await delRes.json().catch(() => ({}));
+          if (!delRes.ok) throw new Error(data.error || 'Could not remove.');
+          statusEl.textContent = '';
+          await loadReviewersPanel(row, submissionId);
+        } catch (err) {
+          statusEl.textContent = err.message;
+          statusEl.classList.add('error');
+          btn.disabled = false;
+        }
+      });
+    });
+
+    section.querySelector('.assign-reviewer-btn').onclick = async () => {
+      const reviewerId = select.value;
+      if (!reviewerId) return;
+      statusEl.textContent = 'Assigning…';
+      statusEl.classList.remove('error');
+      try {
+        const csrfToken = await getCsrfToken();
+        const assignRes = await fetch(`/api/editor/submissions/${submissionId}/reviewers`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+          body: JSON.stringify({ reviewer_id: Number(reviewerId) }),
+        });
+        const data = await assignRes.json().catch(() => ({}));
+        if (!assignRes.ok) throw new Error(data.error || 'Could not assign.');
+        statusEl.textContent = '';
+        await loadReviewersPanel(row, submissionId);
+      } catch (err) {
+        statusEl.textContent = err.message;
+        statusEl.classList.add('error');
+      }
+    };
+  }
+
   async function handleHistoryToggle(event) {
     event.preventDefault();
     const link = event.target;
@@ -233,6 +331,9 @@
         .join('');
       list.dataset.loaded = '1';
     }
+
+    await loadReviewersPanel(row, submissionId);
+
     row.classList.remove('hidden');
     link.textContent = 'Hide';
   }
@@ -258,7 +359,7 @@
       `${filtered.length} of ${allSubmissions.length} submission${allSubmissions.length === 1 ? '' : 's'}`;
 
     if (!filtered.length) {
-      body.innerHTML = `<tr><td colspan="7">${allSubmissions.length ? 'No submissions match this filter.' : 'No submissions yet.'}</td></tr>`;
+      body.innerHTML = `<tr><td colspan="8">${allSubmissions.length ? 'No submissions match this filter.' : 'No submissions yet.'}</td></tr>`;
       return;
     }
 
@@ -289,6 +390,10 @@
           statusCell = `<select data-submission-id="${s.id}">${options}</select><span class="save-status" aria-live="polite"></span>`;
         }
 
+        const reviewersSummary = s.reviewers_assigned
+          ? `${s.reviews_submitted}/${s.reviewers_assigned} submitted`
+          : 'None assigned';
+
         return `
           <tr>
             <td>${escapeHtml(s.title)}</td>
@@ -297,10 +402,25 @@
             <td>${fileLinks}</td>
             <td>${date}</td>
             <td>${statusCell}</td>
+            <td>${reviewersSummary}</td>
             <td><a href="#" class="history-toggle" data-submission-id="${s.id}">Show</a></td>
           </tr>
           <tr class="history-row hidden" data-history-row="${s.id}">
-            <td colspan="7"><ul class="history-list"></ul></td>
+            <td colspan="8">
+              <div class="details-section">
+                <h4>Status History</h4>
+                <ul class="history-list"></ul>
+              </div>
+              <div class="details-section reviewers-section" data-submission-id="${s.id}">
+                <h4>Reviewers</h4>
+                <ul class="reviewer-list"></ul>
+                <div class="assign-reviewer-row">
+                  <select class="assign-reviewer-select" aria-label="Choose a reviewer to assign"></select>
+                  <button type="button" class="role-btn assign-reviewer-btn">Assign</button>
+                  <span class="action-status reviewer-assign-status" aria-live="polite"></span>
+                </div>
+              </div>
+            </td>
           </tr>`;
       })
       .join('');
@@ -321,6 +441,12 @@
     }
     const me = await meRes.json();
     document.getElementById('accountName').textContent = me.full_name;
+    if (me.is_reviewer) {
+      document.getElementById('pageIntro').insertAdjacentHTML(
+        'beforeend',
+        ' <a href="reviewer-dashboard.html">Reviewer Dashboard</a>'
+      );
+    }
 
     const accountLink = document.getElementById('accountLink');
     accountLink.textContent = 'Log Out';
@@ -343,6 +469,9 @@
       return;
     }
     allSubmissions = await res.json();
+
+    const reviewersRes = await fetch('/api/editor/reviewers');
+    allReviewers = reviewersRes.ok ? await reviewersRes.json() : [];
 
     document.getElementById('tableWrap').classList.remove('hidden');
 
