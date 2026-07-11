@@ -4,6 +4,8 @@
 # needs the system libmagic library installed, which adds a deployment
 # dependency we don't need for this small, known set of file types.
 
+import os
+
 SIGNATURES = {
     "pdf": [b"%PDF-"],
     "png": [b"\x89PNG\r\n\x1a\n"],
@@ -26,6 +28,17 @@ SIGNATURES = {
 TEXT_EXTENSIONS = {"csv", "txt", "json"}
 
 SNIFF_BYTES = 16
+
+
+def file_extension_ok(filename, allowed_extensions):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
+
+
+def file_size_ok(file_storage, max_bytes):
+    file_storage.stream.seek(0, os.SEEK_END)
+    size = file_storage.stream.tell()
+    file_storage.stream.seek(0)
+    return size <= max_bytes
 
 
 def file_content_matches_extension(file_storage, extension):

@@ -24,7 +24,7 @@ from config import Config
 from editor import editor_bp
 from reviewer import reviewer_bp
 from extensions import csrf, limiter, login_manager, migrate
-from file_signatures import file_content_matches_extension
+from file_signatures import file_content_matches_extension, file_extension_ok, file_size_ok
 from mailer import send_email
 from models import CoAuthor, StatusChange, Submission, User, db
 from password_rules import validate_password_strength
@@ -126,6 +126,37 @@ def healthz():
         current_app.logger.exception("Health check DB connectivity failed")
         return jsonify({"ok": False, "error": "database unavailable"}), 503
     return jsonify({"ok": True})
+
+
+# ---------- Editorial board (public) ----------
+
+
+@main_bp.route("/api/editorial-board")
+def editorial_board():
+    # Public and unauthenticated — editorial-board.html has no login gate.
+    # Populated whenever an editor promotes someone through editor-users.html
+    # with a board category set (see editor.py's promote_user).
+    def serialize(user):
+        return {
+            "name": user.board_display_name or user.full_name,
+            "roles": user.board_roles or "",
+            "affiliation": user.board_affiliation or "",
+            "photo": user.board_photo,
+        }
+
+    editor_in_chief = (
+        User.query.filter_by(board_category="editor_in_chief").order_by(User.board_display_name).all()
+    )
+    associate_editors = (
+        User.query.filter_by(board_category="associate_editor").order_by(User.board_display_name).all()
+    )
+
+    return jsonify(
+        {
+            "editor_in_chief": [serialize(u) for u in editor_in_chief],
+            "associate_editors": [serialize(u) for u in associate_editors],
+        }
+    )
 
 
 # ---------- Auth API ----------
@@ -406,17 +437,6 @@ FILE_FIELDS = {
         "required": False,
     },
 }
-
-
-def file_extension_ok(filename, allowed_extensions):
-    return "." in filename and filename.rsplit(".", 1)[1].lower() in allowed_extensions
-
-
-def file_size_ok(file_storage, max_bytes):
-    file_storage.stream.seek(0, os.SEEK_END)
-    size = file_storage.stream.tell()
-    file_storage.stream.seek(0)
-    return size <= max_bytes
 
 
 def submission_error(message):

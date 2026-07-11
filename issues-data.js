@@ -8,7 +8,10 @@
 //
 // To publish a new article within an existing issue: add an object to
 // that issue's matching articles array (editorialBoard, originalArticles,
-// reviewArticle, or technicalNotes).
+// reviewArticle, or technicalNotes). Each article can optionally set
+// `thumb` (a path under IMAGE/articles/) for its thumbnail on the
+// homepage's "Recent Articles" teaser — if omitted, or if the file
+// doesn't exist yet, a plain gray box is shown instead.
 const ISSUES = [
   {
     id: "2025-v1-n1",
@@ -32,6 +35,7 @@ const ISSUES = [
           title: "Editorial Message from the Editor-in-Chief",
           authors: "Jemwel B. Aron",
           pdf: "assets/pdfs/editorial-message.pdf",
+          thumb: "IMAGE/articles/editorial-message.jpg",
         },
       ],
       originalArticles: [
@@ -39,6 +43,7 @@ const ISSUES = [
           title: "Advances in carbon capture and utilization of technologies: A review",
           authors: "Marial L. Santos, Ariel P. Reyes, Josh B. Villanueva",
           pdf: "assets/pdfs/original-article-carbon-capture.pdf",
+          thumb: "IMAGE/articles/original-article-carbon-capture.jpg",
         },
       ],
       reviewArticle: [
@@ -46,6 +51,7 @@ const ISSUES = [
           title: "Advances in carbon capture and utilization of technologies: A review",
           authors: "Marial L. Santos, Ariel P. Reyes, Josh B. Villanueva",
           pdf: "assets/pdfs/review-article-carbon-capture.pdf",
+          thumb: "IMAGE/articles/review-article-carbon-capture.jpg",
         },
       ],
       technicalNotes: [
@@ -53,6 +59,7 @@ const ISSUES = [
           title: "Advances in carbon capture and utilization of technologies: A review",
           authors: "Marial L. Santos, Ariel P. Reyes, Josh B. Villanueva",
           pdf: "assets/pdfs/technical-note-carbon-capture.pdf",
+          thumb: "IMAGE/articles/technical-note-carbon-capture.jpg",
         },
       ],
     },

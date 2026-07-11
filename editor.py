@@ -1,10 +1,13 @@
 import csv
 import io
+import uuid
 from functools import wraps
 
 from flask import Blueprint, Response, current_app, jsonify, request, send_from_directory
 from flask_login import current_user, login_required
 
+from config import BASE_DIR
+from file_signatures import file_content_matches_extension, file_extension_ok, file_size_ok
 from mailer import send_email
 from models import ReviewAssignment, StatusChange, Submission, User, db
 from security_log import security_logger
@@ -12,6 +15,32 @@ from statuses import EDITOR_SETTABLE_STATUSES, STATUS_LABELS
 from submission_files import FILE_FIELD_COLUMNS
 
 editor_bp = Blueprint("editor", __name__, url_prefix="/api/editor")
+
+# ---------- Editorial board photo uploads ----------
+# Saved under the project root (not INSTANCE_DIR) so they're served as
+# public static files, same as the rest of IMAGE/ — editorial-board.html
+# has no login gate, so these can't live behind the private uploads dir.
+BOARD_PHOTO_DIR = BASE_DIR / "IMAGE" / "editorial-board"
+BOARD_PHOTO_EXTENSIONS = {"jpg", "jpeg", "png"}
+BOARD_PHOTO_MAX_BYTES = 5 * 1024 * 1024
+BOARD_CATEGORIES = {"editor_in_chief", "associate_editor"}
+DEFAULT_BOARD_AFFILIATION = "College of Technology, University of San Agustin, Iloilo City, Philippines"
+
+
+def _save_board_photo(file_storage, user_id):
+    if not file_extension_ok(file_storage.filename, BOARD_PHOTO_EXTENSIONS):
+        return None, "Photo: file type not allowed (use JPG or PNG)."
+    if not file_size_ok(file_storage, BOARD_PHOTO_MAX_BYTES):
+        return None, "Photo: file is too large (5MB max)."
+
+    extension = file_storage.filename.rsplit(".", 1)[1].lower()
+    if not file_content_matches_extension(file_storage, extension):
+        return None, "Photo: file content doesn't match its extension."
+
+    BOARD_PHOTO_DIR.mkdir(parents=True, exist_ok=True)
+    filename = f"user-{user_id}-{uuid.uuid4().hex[:8]}.{extension}"
+    file_storage.save(BOARD_PHOTO_DIR / filename)
+    return f"IMAGE/editorial-board/{filename}", None
 
 
 def editor_required(view):
@@ -200,6 +229,11 @@ def list_users():
                 "email": u.email,
                 "is_editor": u.is_editor,
                 "is_reviewer": u.is_reviewer,
+                "board_category": u.board_category,
+                "board_display_name": u.board_display_name,
+                "board_roles": u.board_roles,
+                "board_affiliation": u.board_affiliation,
+                "board_photo": u.board_photo,
             }
             for u in users
         ]
@@ -212,6 +246,33 @@ def promote_user(user_id):
     user = db.session.get(User, user_id)
     if not user:
         return jsonify({"error": "User not found."}), 404
+
+    # The board_category field is optional here so the CLI's `flask
+    # make-editor` (and plain promotions with no form body) keep working
+    # unchanged. editor-users.html's promotion form always sends it, which
+    # is what actually populates the public Editorial Board page.
+    category = (request.form.get("board_category") or "").strip()
+    if category:
+        if category not in BOARD_CATEGORIES:
+            return jsonify({"error": "Invalid board category."}), 400
+
+        display_name = (request.form.get("board_display_name") or "").strip() or user.full_name
+        roles = (request.form.get("board_roles") or "").strip()
+        affiliation = (request.form.get("board_affiliation") or "").strip() or DEFAULT_BOARD_AFFILIATION
+        if not roles:
+            return jsonify({"error": "Roles/expertise is required."}), 400
+
+        photo_file = request.files.get("board_photo")
+        if photo_file and photo_file.filename:
+            photo_path, error = _save_board_photo(photo_file, user_id)
+            if error:
+                return jsonify({"error": error}), 400
+            user.board_photo = photo_path
+
+        user.board_category = category
+        user.board_display_name = display_name
+        user.board_roles = roles
+        user.board_affiliation = affiliation
 
     user.is_editor = True
     db.session.commit()
@@ -232,6 +293,10 @@ def demote_user(user_id):
         return jsonify({"error": "User not found."}), 404
 
     user.is_editor = False
+    # Drop them from the public Editorial Board page. The rest of the
+    # profile (name/roles/affiliation/photo) stays in place so re-promoting
+    # them later doesn't require re-filling the form.
+    user.board_category = None
     db.session.commit()
     security_logger.info(f"user demoted from editor id={user_id} by_user_id={current_user.id}")
     return jsonify({"ok": True})

@@ -18,6 +18,15 @@ class User(db.Model, UserMixin):
     is_editor = db.Column(db.Boolean, nullable=False, default=False)
     is_reviewer = db.Column(db.Boolean, nullable=False, default=False)
     email_verified = db.Column(db.Boolean, nullable=False, default=False)
+    # Public Editorial Board listing (editorial-board.html). Set when an
+    # editor promotes this account via editor-users.html; cleared (category
+    # only) on demotion so a removed editor drops off the public page
+    # without losing the rest of the profile if they're re-promoted later.
+    board_category = db.Column(db.String(20), nullable=True)  # "editor_in_chief" | "associate_editor"
+    board_display_name = db.Column(db.String(200), nullable=True)
+    board_roles = db.Column(db.String(500), nullable=True)
+    board_affiliation = db.Column(db.String(300), nullable=True)
+    board_photo = db.Column(db.String(300), nullable=True)
     # Bumped on every password change/reset. Embedded in the session cookie
     # (see get_id() below) so that changing your password invalidates any
     # other already-authenticated session/remember-me cookie — e.g. one an

@@ -154,10 +154,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   /* ---------- Editorial board ---------- */
+  // Renders two sources merged together: the static roster below (manually
+  // maintained, no login required) plus anyone an editor has promoted with
+  // a board category set via editor-users.html (fetched live from
+  // /api/editorial-board) — see editor.py's promote_user.
   const renderBoardMember = (editor) => `
     <div class="board-member">
       <div class="member-avatar">
-        <img src="${editor.photo}" alt="" onerror="this.style.display='none';" />
+        ${
+          editor.photo
+            ? `<img src="${editor.photo}" alt="" onerror="this.remove();" />`
+            : ""
+        }
       </div>
       <div class="member-info">
         <div class="member-name"><a href="${editor.link || "#"}">${editor.name}</a></div>
@@ -167,13 +175,29 @@ document.addEventListener("DOMContentLoaded", () => {
     </div>`;
 
   const editorInChiefList = document.getElementById("editorInChiefList");
-  if (editorInChiefList && typeof EDITOR_IN_CHIEF !== "undefined") {
-    editorInChiefList.innerHTML = EDITOR_IN_CHIEF.map(renderBoardMember).join("");
-  }
-
   const associateEditorsList = document.getElementById("associateEditorsList");
-  if (associateEditorsList && typeof ASSOCIATE_EDITORS !== "undefined") {
-    associateEditorsList.innerHTML = ASSOCIATE_EDITORS.map(renderBoardMember).join("");
+
+  if (editorInChiefList || associateEditorsList) {
+    const staticEditorInChief = typeof EDITOR_IN_CHIEF !== "undefined" ? EDITOR_IN_CHIEF : [];
+    const staticAssociateEditors = typeof ASSOCIATE_EDITORS !== "undefined" ? ASSOCIATE_EDITORS : [];
+
+    fetch("/api/editorial-board")
+      .then((res) => (res.ok ? res.json() : { editor_in_chief: [], associate_editors: [] }))
+      .catch(() => ({ editor_in_chief: [], associate_editors: [] }))
+      .then((live) => {
+        if (editorInChiefList) {
+          editorInChiefList.innerHTML = staticEditorInChief
+            .concat(live.editor_in_chief || [])
+            .map(renderBoardMember)
+            .join("");
+        }
+        if (associateEditorsList) {
+          associateEditorsList.innerHTML = staticAssociateEditors
+            .concat(live.associate_editors || [])
+            .map(renderBoardMember)
+            .join("");
+        }
+      });
   }
 
   /* ---------- Homepage: recent articles ---------- */
@@ -188,7 +212,11 @@ document.addEventListener("DOMContentLoaded", () => {
           .map(
             (article) => `
               <article class="article-card">
-                <div class="article-thumb"></div>
+                <div class="article-thumb">${
+                  article.thumb
+                    ? `<img src="${article.thumb}" alt="" onerror="this.remove();">`
+                    : ""
+                }</div>
                 <div>
                   <p class="article-tag">${article.tag}</p>
                   <h4 class="article-title"><a href="${article.pdf}" target="_blank" rel="noopener">${article.title}</a></h4>

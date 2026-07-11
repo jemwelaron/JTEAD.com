@@ -19,6 +19,22 @@
   .action-status { font-size: 12px; margin-left: 8px; color: #1e6b34; }
   .action-status.error { color: #b3261e; }
   .denied-notice { background: #fdecea; color: #b3261e; border: 1px solid #f5c6c2; border-radius: 4px; padding: 14px 16px; margin-top: 20px; }
+
+  .modal-overlay { position: fixed; inset: 0; background: rgba(15, 23, 42, 0.5); display: flex; align-items: center; justify-content: center; padding: 20px; z-index: 100; }
+  .modal-overlay.hidden { display: none; }
+  .modal-box { background: #fff; border-radius: 8px; padding: 28px; max-width: 480px; width: 100%; max-height: 90vh; overflow-y: auto; }
+  .modal-box h3 { margin: 0 0 6px; }
+  .modal-intro { color: #667085; font-size: 13px; margin: 0 0 20px; }
+  .modal-field { margin-bottom: 16px; }
+  .modal-field label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; }
+  .modal-field input[type="text"],
+  .modal-field select,
+  .modal-field textarea { width: 100%; padding: 9px 12px; border: 1px solid #e2e8f0; border-radius: 4px; font-size: 14px; box-sizing: border-box; font-family: inherit; }
+  .modal-field textarea { resize: vertical; min-height: 60px; }
+  .modal-field input[type="file"] { font-size: 13px; }
+  .modal-hint { font-size: 12px; color: #98a2b3; margin-top: 4px; }
+  .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
+  .modal-error { color: #b3261e; font-size: 13px; margin-top: 4px; min-height: 16px; }
 </style>
 </head>
 <body>
@@ -110,6 +126,44 @@
   </div>
 </main>
 
+<div class="modal-overlay hidden" id="promoteModal">
+  <div class="modal-box">
+    <h3>Make editor</h3>
+    <p class="modal-intro" id="promoteModalIntro"></p>
+    <form id="promoteForm">
+      <div class="modal-field">
+        <label for="boardDisplayName">Display name</label>
+        <input type="text" id="boardDisplayName" required>
+      </div>
+      <div class="modal-field">
+        <label for="boardCategory">Editorial Board category</label>
+        <select id="boardCategory" required>
+          <option value="editor_in_chief">Editor-in-Chief</option>
+          <option value="associate_editor" selected>Associate Editor</option>
+        </select>
+      </div>
+      <div class="modal-field">
+        <label for="boardRoles">Roles / expertise</label>
+        <textarea id="boardRoles" required placeholder="e.g. Structural Engineering, Advanced Construction Materials"></textarea>
+      </div>
+      <div class="modal-field">
+        <label for="boardAffiliation">Affiliation</label>
+        <input type="text" id="boardAffiliation" required>
+      </div>
+      <div class="modal-field">
+        <label for="boardPhoto">Photo (optional)</label>
+        <input type="file" id="boardPhoto" accept=".jpg,.jpeg,.png">
+        <p class="modal-hint">JPG or PNG, up to 5MB. Leave blank to keep showing a placeholder for now.</p>
+      </div>
+      <p class="modal-error" id="promoteModalError" role="alert"></p>
+      <div class="modal-actions">
+        <button type="button" class="role-btn" id="promoteModalCancel">Cancel</button>
+        <button type="submit" class="role-btn" id="promoteModalSubmit">Make editor</button>
+      </div>
+    </form>
+  </div>
+</div>
+
 <footer class="site-footer">
   <div class="container footer-grid">
     <div>
@@ -152,6 +206,8 @@
 <script src="script.js"></script>
 <script>
   let currentUserId = null;
+  let usersById = {};
+  const DEFAULT_BOARD_AFFILIATION = 'College of Technology, University of San Agustin, Iloilo City, Philippines';
 
   function escapeHtml(value) {
     const div = document.createElement('div');
@@ -170,6 +226,7 @@
     const res = await fetch(`/api/editor/users${params}`);
     if (!res.ok) return;
     const users = await res.json();
+    usersById = Object.fromEntries(users.map((u) => [u.id, u]));
     renderUsers(users);
   }
 
@@ -207,6 +264,15 @@
     const btn = event.target;
     const userId = btn.dataset.userId;
     const action = btn.dataset.action;
+
+    // Promoting to editor also adds them to the public Editorial Board —
+    // route through the modal to collect that profile first instead of
+    // firing the request immediately like the other three actions do.
+    if (action === 'promote') {
+      openPromoteModal(userId);
+      return;
+    }
+
     const kind = action.includes('reviewer') ? 'reviewer' : 'editor';
     const statusEl = document.getElementById(`status-${kind}-${userId}`);
     btn.disabled = true;
@@ -228,6 +294,75 @@
       btn.disabled = false;
     }
   }
+
+  let promoteModalUserId = null;
+
+  function openPromoteModal(userId) {
+    const user = usersById[userId];
+    if (!user) return;
+    promoteModalUserId = userId;
+
+    document.getElementById('promoteModalIntro').textContent =
+      `Promoting ${user.full_name} (${user.email}) to editor. This also adds them to the public Editorial Board page.`;
+    document.getElementById('boardDisplayName').value = user.board_display_name || user.full_name;
+    document.getElementById('boardCategory').value = user.board_category || 'associate_editor';
+    document.getElementById('boardRoles').value = user.board_roles || '';
+    document.getElementById('boardAffiliation').value = user.board_affiliation || DEFAULT_BOARD_AFFILIATION;
+    document.getElementById('boardPhoto').value = '';
+    document.getElementById('promoteModalError').textContent = '';
+    const submitBtn = document.getElementById('promoteModalSubmit');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Make editor';
+    document.getElementById('promoteModal').classList.remove('hidden');
+    document.getElementById('boardDisplayName').focus();
+  }
+
+  function closePromoteModal() {
+    document.getElementById('promoteModal').classList.add('hidden');
+    promoteModalUserId = null;
+  }
+
+  document.getElementById('promoteModalCancel').addEventListener('click', closePromoteModal);
+  document.getElementById('promoteModal').addEventListener('click', (e) => {
+    if (e.target.id === 'promoteModal') closePromoteModal();
+  });
+
+  document.getElementById('promoteForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    if (!promoteModalUserId) return;
+
+    const submitBtn = document.getElementById('promoteModalSubmit');
+    const errorEl = document.getElementById('promoteModalError');
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Saving…';
+    errorEl.textContent = '';
+
+    try {
+      const csrfToken = await getCsrfToken();
+      const formData = new FormData();
+      formData.append('board_category', document.getElementById('boardCategory').value);
+      formData.append('board_display_name', document.getElementById('boardDisplayName').value.trim());
+      formData.append('board_roles', document.getElementById('boardRoles').value.trim());
+      formData.append('board_affiliation', document.getElementById('boardAffiliation').value.trim());
+      const photoFile = document.getElementById('boardPhoto').files[0];
+      if (photoFile) formData.append('board_photo', photoFile);
+
+      const res = await fetch(`/api/editor/users/${promoteModalUserId}/promote`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData,
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data.error || 'Could not save.');
+
+      closePromoteModal();
+      await loadUsers(document.getElementById('userSearch').value.trim());
+    } catch (err) {
+      errorEl.textContent = err.message;
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Make editor';
+    }
+  });
 
   (async function init() {
     const meRes = await fetch('/api/me');
