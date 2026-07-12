@@ -3,4 +3,4 @@ Allow: /
 Disallow: /authentication.html
 Disallow: /Submit%20portal.html
 
-Sitemap: https://jtead.usa.edu.ph/sitemap.xml
+Sitemap: https://jemwelaron.pythonanywhere.com/sitemap.xml

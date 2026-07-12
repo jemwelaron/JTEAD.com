@@ -23,11 +23,10 @@ const ISSUES = [
     publishedLabel: "June 30, 2025",
     current: true,
     cover: "IMAGE/2025-v1-n1-cover.jpg",
-    description:
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim",
+    description: "Details for this issue have not been added yet.",
     doi: "10.12345/JTEAD.v1.1",
-    issnOnline: "XXXX-XXXX",
-    issnPrint: "XXXX-XXXX",
+    issnOnline: "Pending",
+    issnPrint: "Pending",
     frequency: "Semi-annual",
     articles: {
       editorialBoard: [
@@ -76,8 +75,8 @@ const ISSUES = [
     cover: "IMAGE/2025-v1-n2-cover.jpg",
     description: "Details for this issue have not been added yet.",
     doi: "10.12345/JTEAD.v1.2",
-    issnOnline: "XXXX-XXXX",
-    issnPrint: "XXXX-XXXX",
+    issnOnline: "Pending",
+    issnPrint: "Pending",
     frequency: "Semi-annual",
     articles: {
       editorialBoard: [],
@@ -98,8 +97,8 @@ const ISSUES = [
     cover: "IMAGE/2026-v1-n1-cover.jpg",
     description: "Details for this issue have not been added yet.",
     doi: "10.12345/JTEAD.v2.1",
-    issnOnline: "XXXX-XXXX",
-    issnPrint: "XXXX-XXXX",
+    issnOnline: "Pending",
+    issnPrint: "Pending",
     frequency: "Semi-annual",
     articles: {
       editorialBoard: [],
@@ -120,8 +119,8 @@ const ISSUES = [
     cover: "IMAGE/2026-v1-n2-cover.jpg",
     description: "Details for this issue have not been added yet.",
     doi: "10.12345/JTEAD.v2.2",
-    issnOnline: "XXXX-XXXX",
-    issnPrint: "XXXX-XXXX",
+    issnOnline: "Pending",
+    issnPrint: "Pending",
     frequency: "Semi-annual",
     articles: {
       editorialBoard: [],
