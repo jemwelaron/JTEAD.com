@@ -325,19 +325,10 @@ button {
 
 /* ---------- Hero ---------- */
 .hero {
-  background: var(--navy);
+  background: linear-gradient(to left, #163c7a 0%, var(--navy) 55%, var(--navy-dark) 100%);
   color: #fff;
   /* ---> ADD THIS LINE TO CREATE THE WHITE SEPARATION <--- */
-  border-top: 1px solid #ffffff; 
-}
-
-.hero .container {
-  display: grid;
-  grid-template-columns: 1.2fr 1fr;
-  gap: 40px;
-  align-items: center;
-  padding-top: 56px;
-  padding-bottom: 56px;
+  border-top: 1px solid #ffffff;
 }
 
 .hero .container {
@@ -422,6 +413,70 @@ button {
 .cfp-banner .cfp-link:focus-visible {
   outline: 2px solid #d4af37;
   outline-offset: 2px;
+}
+
+/* Below 720px the SVG's text scales down with its viewBox width and
+   becomes illegible, so swap it for a real, independently-sized HTML
+   block instead of trying to make one fixed-viewBox SVG work at every
+   width — same 720px breakpoint used elsewhere on the site (e.g.
+   .board-member). */
+.cfp-banner-mobile {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .cfp-banner .cfp-banner-svg {
+    display: none;
+  }
+
+  .cfp-banner-mobile {
+    display: block;
+    background: linear-gradient(135deg, #002147 0%, #0d3866 100%);
+    border-radius: 10px;
+    border-left: 6px solid var(--gold);
+    padding: 20px 18px;
+  }
+
+  .cfp-mobile-badge {
+    display: inline-block;
+    background: var(--gold);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 6px 14px;
+    border-radius: 999px;
+    margin-bottom: 14px;
+  }
+
+  .cfp-mobile-title {
+    color: #fff;
+    font-size: 1.15rem;
+    line-height: 1.4;
+    margin: 0 0 6px;
+  }
+
+  .cfp-mobile-highlight {
+    color: var(--gold-light);
+  }
+
+  .cfp-mobile-sub {
+    color: #b9c2d4;
+    font-size: 0.85rem;
+    margin: 0 0 18px;
+  }
+
+  .cfp-mobile-cta {
+    display: block;
+    text-align: center;
+    border: 1.5px solid var(--gold);
+    color: var(--gold-light);
+    font-size: 0.85rem;
+    font-weight: 700;
+    padding: 11px;
+    border-radius: 4px;
+  }
 }
 
 /* ---------- Hero image slider ---------- */
@@ -525,6 +580,7 @@ button {
 
 .cols-2 {
   grid-template-columns: 1.5fr 1fr;
+  align-items: start;
 }
 
 .cols-2b {
@@ -1114,10 +1170,6 @@ button {
   width: 100%;
   height: 100%;
   object-fit: cover;
-}
-
-.issue-hero-thumb-placeholder {
-  display: none;
 }
 
 .issue-hero-info h3 {

@@ -1,3 +1,9 @@
+function escapeHtml(value) {
+  const div = document.createElement("div");
+  div.textContent = value == null ? "" : String(value);
+  return div.innerHTML;
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   /* ---------- Site-wide account link (login state) ----------
    * Pages like my-submissions.html and editor-dashboard.html already manage
@@ -163,14 +169,14 @@ document.addEventListener("DOMContentLoaded", () => {
       <div class="member-avatar">
         ${
           editor.photo
-            ? `<img src="${editor.photo}" alt="" onerror="this.remove();" />`
+            ? `<img src="${escapeHtml(editor.photo)}" alt="" onerror="this.remove();" />`
             : ""
         }
       </div>
       <div class="member-info">
-        <div class="member-name"><a href="${editor.link || "#"}">${editor.name}</a></div>
-        <div class="member-roles">${editor.roles}</div>
-        <div class="member-affiliation">${editor.affiliation}</div>
+        <div class="member-name"><a href="${escapeHtml(editor.link || "#")}">${escapeHtml(editor.name)}</a></div>
+        <div class="member-roles">${escapeHtml(editor.roles)}</div>
+        <div class="member-affiliation">${escapeHtml(editor.affiliation)}</div>
       </div>
     </div>`;
 
@@ -198,6 +204,38 @@ document.addEventListener("DOMContentLoaded", () => {
             .join("");
         }
       });
+  }
+
+  /* ---------- Homepage: current issue summary card ---------- */
+  const currentIssueMeta = document.getElementById("currentIssueMeta");
+
+  if (currentIssueMeta && typeof getCurrentIssue === "function") {
+    const issue = getCurrentIssue();
+    const articleCount = Object.values(issue.articles || {}).reduce(
+      (total, section) => total + section.length,
+      0
+    );
+
+    currentIssueMeta.innerHTML = `
+      <p><strong>Volume ${issue.volume}, Issue ${issue.number}</strong></p>
+      <p>${issue.monthLabel}</p>
+      <p><strong>Published:</strong> ${issue.publishedLabel}</p>
+      <p><strong>Articles:</strong> ${articleCount}</p>`;
+
+    const currentIssueCover = document.getElementById("currentIssueCover");
+    if (currentIssueCover && issue.cover) {
+      const fallbackSrc = currentIssueCover.getAttribute("src");
+      currentIssueCover.onerror = () => {
+        currentIssueCover.onerror = null;
+        currentIssueCover.src = fallbackSrc;
+      };
+      currentIssueCover.src = issue.cover;
+    }
+
+    const currentIssueViewLink = document.getElementById("currentIssueViewLink");
+    if (currentIssueViewLink) {
+      currentIssueViewLink.href = `current.html?id=${issue.id}`;
+    }
   }
 
   /* ---------- Homepage: recent articles ---------- */

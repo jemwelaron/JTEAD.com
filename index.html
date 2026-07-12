@@ -93,7 +93,7 @@
 
   <div class="cfp-banner">
     <div class="container">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 140" width="100%" height="100%" role="img" aria-label="Call for Papers — now accepting submissions for Volume 1, Issue 2. Submit Manuscript.">
+      <svg class="cfp-banner-svg" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 140" width="100%" height="100%" role="img" aria-label="Call for Papers — now accepting submissions for Volume 1, Issue 2. Submit Manuscript.">
         <defs>
           <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
             <stop offset="0%" stop-color="#002147" />
@@ -129,6 +129,15 @@
           <text x="1064" y="75" fill="#d4af37" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12.5" font-weight="bold" text-anchor="middle">SUBMIT MANUSCRIPT &#8594;</text>
         </a>
       </svg>
+
+      <div class="cfp-banner-mobile">
+        <a href="announcements.html" class="cfp-mobile-badge">Call for Papers</a>
+        <h3 class="cfp-mobile-title">Now accepting submissions for
+          <a href="current.html?id=2025-v1-n2" class="cfp-mobile-highlight">Volume 1, Issue 2</a>
+        </h3>
+        <p class="cfp-mobile-sub">Rigorous peer review &#183; Double-blind &#183; Open access</p>
+        <a href="authentication.html" class="cfp-mobile-cta">Submit Manuscript &#8594;</a>
+      </div>
     </div>
   </div>
 
@@ -166,15 +175,15 @@
       <div class="card">
         <h3>JOURNAL OF TECHNOLOGY, ENGINEERING, ARCHITECTURE AND DESIGN</h3>
         <div class="hero-image-container">
-        <img src="Volume1bg.jpg" class="hero-image" alt="Featured Journal Artwork">
+        <img src="Volume1bg.jpg" class="hero-image" id="currentIssueCover" alt="Featured Journal Artwork">
       </div>
-        <div class="issue-meta">
+        <div class="issue-meta" id="currentIssueMeta">
           <p><strong>Volume 1, Issue 1</strong></p>
           <p>June 2025</p>
           <p><strong>Published:</strong> June 30, 2025</p>
           <p><strong>Articles:</strong> 6</p>
         </div>
-        <a href="current.html"><button class="btn-outline-gold" type="button">View Issue &rarr;</button></a>
+        <a href="current.html" id="currentIssueViewLink"><button class="btn-outline-gold" type="button">View Issue &rarr;</button></a>
         <br />
         <a class="link-inline" href="archives.html">All issues &rarr;</a>
       </div>
