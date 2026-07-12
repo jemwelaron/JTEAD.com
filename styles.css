@@ -383,6 +383,11 @@ button {
   border-radius: 6px;
   width: 100%;
   aspect-ratio: 4 / 3;
+  object-fit: cover;
+}
+
+.hero-image-container {
+  margin-bottom: 18px;
 }
 
 .cfp-banner {
@@ -486,7 +491,27 @@ button {
   aspect-ratio: 4 / 3;
   border-radius: 6px;
   overflow: hidden;
-  background: var(--bg-placeholder);
+  background: transparent;
+}
+
+/* Directional fade, darkest at the left edge and clearing to fully
+   transparent moving right — neutral black, not tinted blue, so it
+   doesn't discolor the image underneath. Sized to the slider box itself
+   (not the image), so it covers the full frame the same way regardless
+   of whatever aspect ratio the active slide's image actually is. */
+.hero-slider::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  background: linear-gradient(
+    to right,
+    rgba(0, 0, 0, 0.6) 0%,
+    rgba(0, 0, 0, 0) 100%
+  );
 }
 
 .hero-slide {
@@ -575,11 +600,14 @@ button {
 .section-row {
   display: grid;
   gap: 28px;
-  padding: 40px 0;
+  padding: 18px 0;
 }
 
 .cols-2 {
   grid-template-columns: 1.5fr 1fr;
+}
+
+.cols-2 {
   align-items: start;
 }
 
@@ -592,6 +620,18 @@ button {
   border-radius: 8px;
   padding: 28px;
   background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+/* When a card is stretched taller than its own content (e.g. the About
+   card next to the taller Current Issue card in .cols-2), push the icon
+   grid down to sit flush against the card's own bottom padding — same
+   size as the top padding — instead of leaving extra dead space below
+   the icons. Any leftover space lands above the grid instead. */
+.card:has(.about-grid) .about-grid {
+  flex: 1;
+  align-content: center;
 }
 
 .card h3 {
@@ -621,12 +661,18 @@ button {
 .about-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 24px;
-  margin-top: 20px;
+  gap: 14px;
+  margin-top: 10px;
 }
 
 .about-item {
   text-align: center;
+}
+
+.about-grid-divider {
+  grid-column: 1 / -1;
+  border-top: 1px solid var(--border-light);
+  margin: 4px 0;
 }
 
 .about-item .icon {
@@ -746,9 +792,43 @@ button {
 
 /* 3. Add this selector right below it to make sure the image scales perfectly */
 .issue-thumb img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain; /* Prevents stretching; leaves a clean background if needed */
+  width: auto;
+  max-width: 65%;   /* <--- CHANGE TO THIS to make the image and box shorter! */
+  height: auto;
+  max-height: 180px; /* <--- ADD THIS to force the height to stay small */
+  object-fit: contain; 
+  margin: 0 auto;    /* <--- ADD THIS to keep it perfectly centered */
+}
+
+.issue-meta-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.issue-meta-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+@media (max-width: 720px) {
+  .issue-meta-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .issue-meta-actions {
+    align-items: flex-start;
+    margin-top: 4px;
+  }
+}
+
+.issue-meta-actions .btn-outline-gold {
+  margin-top: 0;
 }
 
 .issue-meta p {
