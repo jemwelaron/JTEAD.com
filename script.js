@@ -247,8 +247,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     recentArticlesList.innerHTML = recentArticles.length
       ? recentArticles
-          .map(
-            (article) => `
+          .map((article) => {
+            const href = article.id ? `article.html?id=${encodeURIComponent(article.id)}` : article.pdf;
+            return `
               <article class="article-card">
                 <div class="article-thumb">${
                   article.thumb
@@ -256,12 +257,12 @@ document.addEventListener("DOMContentLoaded", () => {
                     : ""
                 }</div>
                 <div>
-                  <p class="article-tag">${article.tag}</p>
-                  <h4 class="article-title"><a href="${article.pdf}" target="_blank" rel="noopener">${article.title}</a></h4>
-                  <p class="article-authors">${article.authors}</p>
+                  <p class="article-tag">${escapeHtml(article.tag)}</p>
+                  <h4 class="article-title"><a href="${href}">${escapeHtml(article.title)}</a></h4>
+                  <p class="article-authors">${escapeHtml(article.authors)}</p>
                 </div>
-              </article>`
-          )
+              </article>`;
+          })
           .join("")
       : '<p class="article-row-empty">No articles published yet.</p>';
   }
@@ -322,16 +323,19 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     container.innerHTML = articles
-      .map(
-        (article) => `
+      .map((article) => {
+        const titleHtml = article.id
+          ? `<a href="article.html?id=${encodeURIComponent(article.id)}">${escapeHtml(article.title)}</a>`
+          : escapeHtml(article.title);
+        return `
           <div class="article-row">
             <div>
-              <p class="article-row-title">${article.title}</p>
-              <p class="article-row-authors">${article.authors}</p>
+              <p class="article-row-title">${titleHtml}</p>
+              <p class="article-row-authors">${escapeHtml(article.authors)}</p>
             </div>
             <a class="pdf-badge" href="${article.pdf}" target="_blank" rel="noopener">PDF</a>
-          </div>`
-      )
+          </div>`;
+      })
       .join("");
   };
 
@@ -362,6 +366,69 @@ document.addEventListener("DOMContentLoaded", () => {
     renderArticleSection("originalArticlesList", issue.articles.originalArticles);
     renderArticleSection("reviewArticleList", issue.articles.reviewArticle);
     renderArticleSection("technicalNotesList", issue.articles.technicalNotes);
+  }
+
+  /* ---------- Article detail page ---------- */
+  const articleTitleEl = document.getElementById("articleTitle");
+
+  if (articleTitleEl && typeof getArticleContext === "function") {
+    const articleId = new URLSearchParams(window.location.search).get("id");
+    const context = articleId && getArticleContext(articleId);
+
+    const layoutEl = document.getElementById("articleLayout");
+    const notFoundEl = document.getElementById("articleNotFound");
+
+    if (!context) {
+      if (layoutEl) layoutEl.classList.add("hidden");
+      if (notFoundEl) notFoundEl.classList.remove("hidden");
+    } else {
+      const { article, issue } = context;
+      const issueHref = `current.html?id=${encodeURIComponent(issue.id)}`;
+
+      document.title = `${article.title} — JTEAD`;
+      document.getElementById("articlePageTitle").textContent = `${article.title} — JTEAD`;
+
+      const breadcrumbIssueEl = document.getElementById("articleBreadcrumbIssue");
+      breadcrumbIssueEl.href = issueHref;
+      breadcrumbIssueEl.textContent = issue.current ? "Current Issue" : `Vol. ${issue.volume}, No. ${issue.number}`;
+      document.getElementById("articleBreadcrumbTitle").textContent = article.title;
+
+      document.getElementById("articleTagBadge").textContent = article.tag;
+      articleTitleEl.textContent = article.title;
+      document.getElementById("articleAuthors").textContent = article.authors;
+
+      document.getElementById("articleDOI").textContent = article.doi || "Pending";
+      document.getElementById("articlePublished").textContent = issue.publishedLabel;
+      document.getElementById("articleIssueRef").innerHTML =
+        `<a href="${issueHref}">Vol. ${issue.volume}, No. ${issue.number} (${issue.monthLabel})</a>`;
+
+      document.getElementById("articleDownloadBtn").href = article.pdf;
+
+      document.getElementById("articleAbstract").textContent = article.abstract || "Abstract not yet added.";
+
+      const keywordsEl = document.getElementById("articleKeywords");
+      keywordsEl.innerHTML = article.keywords && article.keywords.length
+        ? article.keywords.map((keyword) => `<span class="pdf-badge">${escapeHtml(keyword)}</span>`).join("")
+        : '<p class="article-row-empty">Keywords not yet added.</p>';
+
+      const year = issue.publishedDate.split("-")[0];
+      document.getElementById("articleCitation").textContent =
+        `${article.authors} (${year}). ${article.title}. JTEAD, ${issue.volume}(${issue.number}). https://doi.org/${article.doi || "pending"}`;
+
+      const inThisIssueList = document.getElementById("inThisIssueList");
+      inThisIssueList.innerHTML = getIssueArticles(issue)
+        .map((sibling) => {
+          const isCurrent = sibling.id === article.id;
+          const title = escapeHtml(sibling.title);
+          const inner = isCurrent || !sibling.id
+            ? title
+            : `<a href="article.html?id=${encodeURIComponent(sibling.id)}">${title}</a>`;
+          return `<li class="${isCurrent ? "is-current" : ""}">${inner}</li>`;
+        })
+        .join("");
+
+      document.getElementById("viewIssueLink").href = issueHref;
+    }
   }
 
   /* ---------- Archives: issue list grouped by year, with filters ---------- */

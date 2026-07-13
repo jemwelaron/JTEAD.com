@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title id="articlePageTitle">Article — JTEAD</title>
+<meta name="description" content="Read this article published in the Journal of Technology, Engineering, Architecture and Design (JTEAD)." />
+<link rel="icon" type="image/png" href="assets/jtead-favicon.png" />
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+<header>
+  <div class="topbar">
+    <div class="container">
+      <a href="https://usa.edu.ph" target="_blank" rel="noopener">University of San Agustin</a>
+      <a href="authentication.html" id="accountLink">My Account</a>
+      <a href="#footerContact">Contact Us</a>
+    </div>
+  </div>
+
+  <div class="site-header">
+    <div class="container">
+      <div class="brand">
+        <img src="assets/jtead-logo.png" class="logo" alt="JTEAD — Journal of Technology, Engineering, Architecture, and Design">
+        <div class="brand-text">
+          <p>A peer reviewed journal of the<br />College of Technology, University of San Agustin</p>
+        </div>
+      </div>
+      <div class="header-actions">
+        <div class="header-issn">
+          <p><strong>ISSN (Print):</strong> Pending</p>
+          <p><strong>ISSN (Online):</strong> Pending</p>
+        </div>
+        <a class="btn-submit" href="authentication.html">Submit Manuscript
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+        </a>
+        <div class="search-wrap">
+          <label class="search-box">
+            <input type="text" id="siteSearchInput" placeholder="Search Article..." aria-label="Search Article" autocomplete="off" />
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" /></svg>
+          </label>
+          <div class="search-results" id="searchResults"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <nav class="main-nav">
+    <div class="container">
+      <button class="nav-toggle" type="button" aria-label="Toggle navigation">&#9776;</button>
+      <ul class="nav-list">
+        <li><a href="index.html">HOME</a></li>
+        <li>
+          <a href="aims-and-scope.html">AIMS AND SCOPE</a>
+        </li>
+        <li>
+          <a href="author-guidelines.html">FOR AUTHORS</a>
+        </li>
+        <li><a href="current.html">CURRENT</a></li>
+        <li><a href="archives.html">ARCHIVES</a></li>
+        <li><a href="editorial-board.html">EDITORIAL BOARD</a></li>
+      </ul>
+    </div>
+  </nav>
+</header>
+
+<main class="container">
+  <nav class="breadcrumb" aria-label="Breadcrumb">
+    <a href="index.html">Home</a>
+    <span class="sep">&rsaquo;</span>
+    <a href="current.html" id="articleBreadcrumbIssue">Current Issue</a>
+    <span class="sep">&rsaquo;</span>
+    <span class="current" id="articleBreadcrumbTitle">Article</span>
+  </nav>
+
+  <div id="articleNotFound" class="hidden">
+    <div class="page-header">
+      <h2>Article not found</h2>
+    </div>
+    <p>This article may have been moved or the link is out of date.</p>
+    <a class="link-inline" href="current.html">Back to the current issue &rarr;</a>
+  </div>
+
+  <div class="article-layout" id="articleLayout">
+    <article class="article-main">
+      <p class="article-tag" id="articleTagBadge"></p>
+      <h1 id="articleTitle"></h1>
+      <p class="article-authors-line" id="articleAuthors"></p>
+
+      <div class="issue-info-box article-meta-box">
+        <p><strong>DOI:</strong> <span id="articleDOI"></span></p>
+        <p><strong>Published:</strong> <span id="articlePublished"></span></p>
+        <p><strong>Issue:</strong> <span id="articleIssueRef"></span></p>
+      </div>
+
+      <a class="btn-outline-gold" id="articleDownloadBtn" href="#" target="_blank" rel="noopener">Download PDF &rarr;</a>
+
+      <section class="article-section">
+        <h3 class="issue-section-title">Abstract</h3>
+        <p id="articleAbstract"></p>
+      </section>
+
+      <section class="article-section">
+        <h3 class="issue-section-title">Keywords</h3>
+        <div class="article-keywords" id="articleKeywords"></div>
+      </section>
+
+      <section class="article-section">
+        <h3 class="issue-section-title">Cite this article</h3>
+        <p class="article-cite-box" id="articleCitation"></p>
+      </section>
+    </article>
+
+    <aside class="article-sidebar">
+      <div class="guidelines-sidebar">
+        <h4 class="guidelines-nav-title">In This Issue</h4>
+        <ul class="article-sidebar-list" id="inThisIssueList"></ul>
+        <a class="link-inline" id="viewIssueLink" href="current.html">View full issue &rarr;</a>
+      </div>
+
+      <div class="guidelines-sidebar article-submit-cta">
+        <h4 class="guidelines-nav-title">Have research to share?</h4>
+        <p>JTEAD welcomes original research, reviews, and technical notes from the College of Technology community.</p>
+        <a class="btn-submit" href="authentication.html">Submit Manuscript</a>
+      </div>
+    </aside>
+  </div>
+</main>
+
+<footer class="site-footer">
+  <div class="container footer-grid">
+    <div>
+      <h5>About JTEAD</h5>
+      <p>The official research journal of the College of Technology, University of San Agustin, dedicated to advancing knowledge in technology, engineering, architecture, and design</p>
+    </div>
+    <div>
+      <h5>Quick Links</h5>
+      <ul>
+        <li><a href="index.html#about">About</a></li>
+        <li><a href="current.html">Current issue</a></li>
+        <li><a href="archives.html">Archives</a></li>
+        <li><a href="authentication.html">Submit manuscript</a></li>
+      </ul>
+    </div>
+    <div>
+      <h5>For Authors</h5>
+      <ul>
+        <li><a href="author-guidelines.html">Author Guidelines</a></li>
+        <li><a href="author-guidelines.html#submission-process">Submission Process</a></li>
+        <li><a href="review-process.html">Review Process</a></li>
+        <li><a href="copyright-policy.html">Copyright Policy</a></li>
+      </ul>
+    </div>
+    <div id="footerContact">
+      <h5>Contact</h5>
+      <p>College of Technology<br />University of San Agustin<br />Iloilo City, Philippines<br />cea@usa.edu.ph</p>
+    </div>
+  </div>
+  <div class="container footer-bottom">
+    <p>&copy; 2025 Journal of Technology, Engineering, Architecture and Design, All rights reserved</p>
+    <div class="legal-links">
+      <a href="privacy-policy.html">Privacy Policy</a>
+      <a href="terms-of-use.html">Terms of use</a>
+    </div>
+  </div>
+</footer>
+
+<script src="issues-data.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

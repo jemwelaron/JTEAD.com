@@ -20,6 +20,13 @@ const EDITOR_IN_CHIEF = [
     affiliation: "College of Technology, University of San Agustin, Iloilo City, Philippines",
     photo: "IMAGE/editorial-board/nolan-c-tolosa.jpg",
   },
+  {
+    name: "Jemwel B. Aron",
+    link: "#",
+    roles: "Biomaterials and Waste Valorization",
+    affiliation: "College of Technology, University of San Agustin, Iloilo City, Philippines",
+    photo: "IMAGE/editorial-board/jemwel-b-aron.jpg",
+  },
 ];
 
 const ASSOCIATE_EDITORS = [
@@ -50,13 +57,6 @@ const ASSOCIATE_EDITORS = [
     roles: "Polymers, Biopolymers, Prepolymerization",
     affiliation: "College of Technology, University of San Agustin, Iloilo City, Philippines",
     photo: "IMAGE/editorial-board/louell-nikki-hipulan.jpg",
-  },
-  {
-    name: "Jemwel B. Aron",
-    link: "#",
-    roles: "Biomaterials and Waste Valorization",
-    affiliation: "College of Technology, University of San Agustin, Iloilo City, Philippines",
-    photo: "IMAGE/editorial-board/jemwel-b-aron.jpg",
   },
   {
     name: "Vince Joefil Bandujo",
